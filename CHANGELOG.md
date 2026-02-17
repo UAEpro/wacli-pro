@@ -10,6 +10,10 @@
 - Messages: store structured reaction data (`reaction_to_id`, `reaction_emoji`) in the messages table. (#67 — thanks @vlassance)
 - Sync: `--events` flag emits NDJSON lifecycle events to stderr (`connected`, `disconnected`, `new_message`, `qr_code`, etc.) for machine-readable scripting and automation. (#85 — thanks @nextbysam)
 - Config: `WACLI_STORE_DIR` environment variable to override the store directory (equivalent to `--store`). (#37 — thanks @mia-mouret)
+- Chats: archive/unarchive, pin/unpin, mute/unmute, mark-read/mark-unread commands. (#46 — thanks @decodiver22)
+- Chats: `chats list` shows archived/pinned/muted/unread flags; filter with `--archived`, `--pinned`, `--muted`, `--unread` (and `--no-*` negations).
+- Chats: `chats show` displays chat state fields.
+- Sync: chat states (archive, pin, mute, read) synced from WhatsApp during bootstrap and live follow mode.
 
 ### Fixed
 

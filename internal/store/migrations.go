@@ -24,6 +24,7 @@ var schemaMigrations = []migration{
 	{version: 4, name: "messages reaction columns", up: migrateMessagesReaction},
 	{version: 5, name: "groups is_member column", up: migrateGroupsIsMember},
 	{version: 6, name: "messages revoked column", up: migrateMessagesRevoked},
+	{version: 7, name: "chat state columns", up: migrateChatState},
 }
 
 func (d *DB) ensureSchema() error {
@@ -299,6 +300,31 @@ func (d *DB) tableExists(table string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func migrateChatState(d *DB) error {
+	cols := []struct {
+		name string
+		ddl  string
+	}{
+		{"archived", "ALTER TABLE chats ADD COLUMN archived INTEGER NOT NULL DEFAULT 0"},
+		{"pinned", "ALTER TABLE chats ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"},
+		{"muted_until", "ALTER TABLE chats ADD COLUMN muted_until INTEGER NOT NULL DEFAULT 0"},
+		{"unread", "ALTER TABLE chats ADD COLUMN unread INTEGER NOT NULL DEFAULT 0"},
+	}
+	for _, c := range cols {
+		has, err := d.tableHasColumn("chats", c.name)
+		if err != nil {
+			return err
+		}
+		if has {
+			continue
+		}
+		if _, err := d.sql.Exec(c.ddl); err != nil {
+			return fmt.Errorf("add %s column: %w", c.name, err)
+		}
+	}
+	return nil
 }
 
 func (d *DB) tableHasColumn(table, column string) (bool, error) {
