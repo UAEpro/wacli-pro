@@ -22,6 +22,7 @@ var schemaMigrations = []migration{
 	{version: 2, name: "messages display_text column", up: migrateMessagesDisplayText},
 	{version: 3, name: "messages fts", up: migrateMessagesFTS},
 	{version: 4, name: "messages reaction columns", up: migrateMessagesReaction},
+	{version: 5, name: "groups is_member column", up: migrateGroupsIsMember},
 }
 
 func (d *DB) ensureSchema() error {
@@ -312,4 +313,18 @@ func (d *DB) tableHasColumn(table, column string) (bool, error) {
 		}
 	}
 	return false, rows.Err()
+}
+
+func migrateGroupsIsMember(d *DB) error {
+	has, err := d.tableHasColumn("groups", "is_member")
+	if err != nil {
+		return err
+	}
+	if has {
+		return nil
+	}
+	if _, err := d.sql.Exec(`ALTER TABLE groups ADD COLUMN is_member INTEGER NOT NULL DEFAULT 1`); err != nil {
+		return fmt.Errorf("add is_member column: %w", err)
+	}
+	return nil
 }
