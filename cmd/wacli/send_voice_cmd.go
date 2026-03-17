@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/steipete/wacli/internal/out"
-	"github.com/steipete/wacli/internal/wa"
 )
 
 func newSendVoiceCmd(flags *rootFlags) *cobra.Command {
@@ -23,26 +21,20 @@ func newSendVoiceCmd(flags *rootFlags) *cobra.Command {
 				return fmt.Errorf("--to and --file are required")
 			}
 
-			ctx, cancel := withTimeout(context.Background(), flags)
+			if data, err := tryDaemonCall(flags, "send.voice", map[string]any{
+				"to": to, "file_path": filePath,
+			}); err != nil {
+				return err
+			} else if data != nil {
+				return outputIPCResult(flags, data, fmt.Sprintf("Sent voice note to %s (id %s)\n", data["to"], data["id"]))
+			}
+
+			ctx, cancel, a, lk, toJID, err := prepareSend(flags, to)
+			if err != nil {
+				return err
+			}
 			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
-			if err != nil {
-				return err
-			}
 			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			toJID, err := wa.ParseUserOrJID(to)
-			if err != nil {
-				return err
-			}
 
 			msgID, meta, err := sendFile(ctx, a, toJID, filePath, "", "", "", true)
 			if err != nil {

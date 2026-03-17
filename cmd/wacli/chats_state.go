@@ -34,6 +34,15 @@ func newChatStateCmd(flags *rootFlags, action chatStateAction) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
+
+			if data, err := tryDaemonCall(flags, "chats."+action.use, map[string]any{
+				"jid": jidStr,
+			}); err != nil {
+				return err
+			} else if data != nil {
+				return outputIPCResult(flags, data, "OK\n")
+			}
+
 			ctx, cancel := withTimeout(context.Background(), flags)
 			defer cancel()
 
@@ -85,6 +94,15 @@ func newChatsMuteCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
+
+			if data, err := tryDaemonCall(flags, "chats.mute", map[string]any{
+				"jid": jidStr, "duration": durStr,
+			}); err != nil {
+				return err
+			} else if data != nil {
+				return outputIPCResult(flags, data, "OK\n")
+			}
+
 			ctx, cancel := withTimeout(context.Background(), flags)
 			defer cancel()
 

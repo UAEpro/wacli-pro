@@ -32,6 +32,14 @@ func newMediaDownloadCmd(flags *rootFlags) *cobra.Command {
 				return fmt.Errorf("--chat and --id are required")
 			}
 
+			if data, err := tryDaemonCall(flags, "media.download", map[string]any{
+				"chat": chat, "id": id, "output": outputPath,
+			}); err != nil {
+				return err
+			} else if data != nil {
+				return outputIPCResult(flags, data, fmt.Sprintf("%s (%v bytes)\n", data["path"], data["bytes"]))
+			}
+
 			ctx, cancel := withTimeout(context.Background(), flags)
 			defer cancel()
 
@@ -67,7 +75,7 @@ func newMediaDownloadCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			now := time.Now().UTC()
-			_ = a.DB().MarkMediaDownloaded(info.ChatJID, info.MsgID, target, now)
+			warnOnErr(a.DB().MarkMediaDownloaded(info.ChatJID, info.MsgID, target, now), "mark media downloaded")
 
 			resp := map[string]any{
 				"chat":          info.ChatJID,

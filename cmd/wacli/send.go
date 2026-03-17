@@ -25,6 +25,9 @@ func newSendCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newSendFileCmd(flags))
 	cmd.AddCommand(newSendStickerCmd(flags))
 	cmd.AddCommand(newSendVoiceCmd(flags))
+	cmd.AddCommand(newSendReactionCmd(flags))
+	cmd.AddCommand(newSendLocationCmd(flags))
+	cmd.AddCommand(newSendForwardCmd(flags))
 	return cmd
 }
 
@@ -40,6 +43,14 @@ func newSendTextCmd(flags *rootFlags) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if to == "" || message == "" {
 				return fmt.Errorf("--to and --message are required")
+			}
+
+			if data, err := tryDaemonCall(flags, "send.text", map[string]any{
+				"to": to, "message": message, "reply_to": replyTo, "reply_chat": replyChat,
+			}); err != nil {
+				return err
+			} else if data != nil {
+				return outputIPCResult(flags, data, fmt.Sprintf("Sent to %s (id %s)\n", data["to"], data["id"]))
 			}
 
 			ctx, cancel := withTimeout(context.Background(), flags)
@@ -119,8 +130,8 @@ func newSendTextCmd(flags *rootFlags) *cobra.Command {
 			chat := toJID
 			chatName := a.WA().ResolveChatName(ctx, chat, "")
 			kind := chatKindFromJID(chat)
-			_ = a.DB().UpsertChat(chat.String(), kind, chatName, now)
-			_ = a.DB().UpsertMessage(store.UpsertMessageParams{
+			warnOnErr(a.DB().UpsertChat(chat.String(), kind, chatName, now), "persist chat")
+			warnOnErr(a.DB().UpsertMessage(store.UpsertMessageParams{
 				ChatJID:    chat.String(),
 				ChatName:   chatName,
 				MsgID:      string(msgID),
@@ -129,7 +140,7 @@ func newSendTextCmd(flags *rootFlags) *cobra.Command {
 				Timestamp:  now,
 				FromMe:     true,
 				Text:       message,
-			})
+			}), "persist message")
 
 			if flags.asJSON {
 				return out.WriteJSON(os.Stdout, map[string]any{

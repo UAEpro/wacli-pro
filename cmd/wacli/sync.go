@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	appPkg "github.com/steipete/wacli/internal/app"
+	"github.com/steipete/wacli/internal/ipc"
 	"github.com/steipete/wacli/internal/out"
 )
 
@@ -17,6 +18,7 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 	var once bool
 	var follow bool
 	var idleExit time.Duration
+	var maxDuration time.Duration
 	var downloadMedia bool
 	var refreshContacts bool
 	var refreshGroups bool
@@ -57,14 +59,38 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 				mode = appPkg.SyncModeOnce
 			}
 
+			// Start IPC server so other wacli commands can delegate to this
+			// process while it holds the lock and WhatsApp connection.
+			var ipcServer *ipc.Server
+			var afterConnect func(context.Context) error
+			if mode == appPkg.SyncModeFollow {
+				afterConnect = func(_ context.Context) error {
+					sockPath := ipc.SocketPath(a.StoreDir())
+					s, err := ipc.NewServer(sockPath, a)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "warning: IPC server: %v\n", err)
+						return nil
+					}
+					registerIPCHandlers(s)
+					go s.Serve(ctx)
+					ipcServer = s
+					return nil
+				}
+			}
+
 			res, err := a.Sync(ctx, appPkg.SyncOptions{
 				Mode:            mode,
 				AllowQR:         false,
+				AfterConnect:    afterConnect,
 				DownloadMedia:   downloadMedia,
 				RefreshContacts: refreshContacts,
 				RefreshGroups:   refreshGroups,
 				IdleExit:        idleExit,
+				MaxDuration:     maxDuration,
 			})
+			if ipcServer != nil {
+				_ = ipcServer.Close()
+			}
 			if err != nil {
 				return err
 			}
@@ -83,6 +109,7 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().BoolVar(&once, "once", false, "sync until idle and exit")
 	cmd.Flags().BoolVar(&follow, "follow", true, "keep syncing until Ctrl+C")
 	cmd.Flags().DurationVar(&idleExit, "idle-exit", 30*time.Second, "exit after being idle (once mode)")
+	cmd.Flags().DurationVar(&maxDuration, "max-duration", 0, "hard timeout for once mode (e.g. 5m); 0 = no limit")
 	cmd.Flags().BoolVar(&downloadMedia, "download-media", false, "download media in the background during sync")
 	cmd.Flags().BoolVar(&refreshContacts, "refresh-contacts", false, "refresh contacts from session store into local DB")
 	cmd.Flags().BoolVar(&refreshGroups, "refresh-groups", false, "refresh joined groups (live) into local DB")

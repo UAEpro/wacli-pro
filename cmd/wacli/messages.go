@@ -359,6 +359,14 @@ func newMessagesDeleteCmd(flags *rootFlags) *cobra.Command {
 				return fmt.Errorf("--chat and --id are required")
 			}
 
+			if data, err := tryDaemonCall(flags, "messages.delete", map[string]any{
+				"chat": chat, "id": id,
+			}); err != nil {
+				return err
+			} else if data != nil {
+				return outputIPCResult(flags, data, fmt.Sprintf("Revoked message %s in %s\n", id, chat))
+			}
+
 			ctx, cancel := withTimeout(context.Background(), flags)
 			defer cancel()
 
@@ -424,6 +432,14 @@ func newMessagesEditCmd(flags *rootFlags) *cobra.Command {
 				return fmt.Errorf("--chat, --id and --message are required")
 			}
 
+			if data, err := tryDaemonCall(flags, "messages.edit", map[string]any{
+				"chat": chat, "id": id, "message": message,
+			}); err != nil {
+				return err
+			} else if data != nil {
+				return outputIPCResult(flags, data, fmt.Sprintf("Edited message %s in %s\n", id, chat))
+			}
+
 			ctx, cancel := withTimeout(context.Background(), flags)
 			defer cancel()
 
@@ -462,7 +478,7 @@ func newMessagesEditCmd(flags *rootFlags) *cobra.Command {
 			if chatName == "" {
 				chatName = a.WA().ResolveChatName(ctx, chatJID, "")
 			}
-			_ = a.DB().UpsertMessage(store.UpsertMessageParams{
+			warnOnErr(a.DB().UpsertMessage(store.UpsertMessageParams{
 				ChatJID:     chat,
 				ChatName:    chatName,
 				MsgID:       id,
@@ -472,7 +488,7 @@ func newMessagesEditCmd(flags *rootFlags) *cobra.Command {
 				FromMe:      true,
 				Text:       message,
 				DisplayText: message,
-			})
+			}), "persist edited message")
 
 			if flags.asJSON {
 				return out.WriteJSON(os.Stdout, map[string]any{

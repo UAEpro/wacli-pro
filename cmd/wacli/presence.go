@@ -59,6 +59,18 @@ func runPresence(flags *rootFlags, to string, state types.ChatPresence, media st
 		return fmt.Errorf("--to is required")
 	}
 
+	ipcCmd := "presence.paused"
+	ipcParams := map[string]any{"to": to}
+	if state == types.ChatPresenceComposing {
+		ipcCmd = "presence.typing"
+		ipcParams["media"] = media
+	}
+	if data, err := tryDaemonCall(flags, ipcCmd, ipcParams); err != nil {
+		return err
+	} else if data != nil {
+		return outputIPCResult(flags, data, fmt.Sprintf("Presence '%s' sent to %s\n", state, data["to"]))
+	}
+
 	ctx, cancel := withTimeout(context.Background(), flags)
 	defer cancel()
 
