@@ -92,6 +92,9 @@ func New(opts Options) (*App, error) {
 
 func (a *App) OpenWA() error {
 	a.waOnce.Do(func() {
+		if a.wa != nil {
+			return
+		}
 		sessionPath := filepath.Join(a.opts.StoreDir, "session.db")
 		cli, err := wa.New(wa.Options{
 			StorePath: sessionPath,
