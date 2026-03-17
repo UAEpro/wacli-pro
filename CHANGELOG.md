@@ -2,6 +2,29 @@
 
 ## 0.5.0 - Unreleased
 
+### Added
+
+- Send: `wacli send sticker` command for sending WebP sticker files. (#27 — thanks @fm1randa)
+- Presence: `wacli presence typing` and `wacli presence paused` commands for sending chat state indicators, with `--media audio` for recording indicator. (#76 — thanks @redemerco)
+- Messages: `--full` global flag to disable truncation in table output; message IDs are shown in full when piped or with `--full`. (#13 — thanks @rickhallett)
+- Messages: store structured reaction data (`reaction_to_id`, `reaction_emoji`) in the messages table. (#67 — thanks @vlassance)
+- Sync: `--events` flag emits NDJSON lifecycle events to stderr (`connected`, `disconnected`, `new_message`, `qr_code`, etc.) for machine-readable scripting and automation. (#85 — thanks @nextbysam)
+- Config: `WACLI_STORE_DIR` environment variable to override the store directory (equivalent to `--store`). (#37 — thanks @mia-mouret)
+
+### Fixed
+
+- JIDs: normalize all JIDs to non-AD form before storage, preventing duplicate entries for the same contact. (#32 — thanks @terry-li-hm)
+- Phone numbers: strip leading `+` prefix in `ParseUserOrJID` so `+49123456789` is accepted. (#74 — thanks @FrederickStempfle)
+
+### Security
+
+- SQL injection: escape `%` and `_` metacharacters in LIKE queries; wrap FTS5 MATCH queries to prevent operator injection.
+- Input validation: phone number regex validation (`^\d{1,15}$`), DB path sanitization, table name validation in migrations.
+- Resource limits: 100 MB file size cap for uploads and downloads; bounded media download queue.
+- File permissions: set `0600` on the SQLite database file.
+- Concurrency: `sync.Once` for WhatsApp client initialization; panic recovery in event handlers and media workers.
+- Sync: force-exit on double SIGINT during `sync --follow`. (#63 — thanks @alexander-morris)
+
 ### Changed
 
 - Internal architecture: split store and groups command logic into focused modules for cleaner maintenance and safer follow-up changes.
@@ -15,10 +38,12 @@
 
 - README: update usage/docs for the 0.2.0 release baseline.
 - Changelog: roll unreleased tracking from `0.2.1` to `0.5.0`.
+- Add CLAUDE.md for Claude Code guidance with project overview, architecture, build commands, and testing patterns. (#82 — thanks @dojanjanjan)
 
 ### Chore
 
 - Version: bump CLI version string to `0.5.0` (unreleased).
+- Dependencies: bump `filippo.io/edwards25519` from 1.1.0 to 1.1.1. (#69)
 
 ## 0.2.0 - 2026-01-23
 
