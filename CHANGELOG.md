@@ -10,14 +10,21 @@
 - Messages: store structured reaction data (`reaction_to_id`, `reaction_emoji`) in the messages table. (#67 — thanks @vlassance)
 - Sync: `--events` flag emits NDJSON lifecycle events to stderr (`connected`, `disconnected`, `new_message`, `qr_code`, etc.) for machine-readable scripting and automation. (#85 — thanks @nextbysam)
 - Config: `WACLI_STORE_DIR` environment variable to override the store directory (equivalent to `--store`). (#37 — thanks @mia-mouret)
+- Send: `--reply-to` flag for quoted replies in `send text`, auto-resolves participant from local DB. (#10 — thanks @Dramex)
+- Send: `wacli send voice` command for voice note (PTT) sending with waveform and duration detection. (#41 — thanks @emre6943)
+- Messages: `messages edit` and `messages delete` commands for sent messages; incoming revoke/edit events tracked during sync. (#80 — thanks @frapeti)
+- Messages: show sender names in group message history via `--names` flag and `SenderName` field. (#73 — thanks @havocked)
+- Groups: filter left groups from `groups list` by default; `--all` flag to include them. (#75 — thanks @FrederickStempfle)
 - Chats: archive/unarchive, pin/unpin, mute/unmute, mark-read/mark-unread commands. (#46 — thanks @decodiver22)
 - Chats: `chats list` shows archived/pinned/muted/unread flags; filter with `--archived`, `--pinned`, `--muted`, `--unread` (and `--no-*` negations).
 - Chats: `chats show` displays chat state fields.
 - Sync: chat states (archive, pin, mute, read) synced from WhatsApp during bootstrap and live follow mode.
+- Messages: extract text from WhatsApp Business message types (templates, buttons, interactive, lists). (#79 — thanks @terry-li-hm)
 
 ### Fixed
 
 - JIDs: normalize all JIDs to non-AD form before storage, preventing duplicate entries for the same contact. (#32 — thanks @terry-li-hm)
+- JIDs: resolve LID (Linked Identity) JIDs to Phone Number JIDs before storage, preventing split chats. (#66 — thanks @vlassance)
 - Phone numbers: strip leading `+` prefix in `ParseUserOrJID` so `+49123456789` is accepted. (#74 — thanks @FrederickStempfle)
 
 ### Security
