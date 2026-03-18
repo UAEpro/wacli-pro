@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -62,12 +61,7 @@ func isDaemonRunning(storeDir string) (int, bool) {
 	if err != nil || pid <= 0 {
 		return 0, false
 	}
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return pid, false
-	}
-	err = proc.Signal(syscall.Signal(0))
-	return pid, err == nil
+	return pid, isProcessAlive(pid)
 }
 
 func newDaemonStartCmd(flags *rootFlags) *cobra.Command {
@@ -123,9 +117,7 @@ func newDaemonStartCmd(flags *rootFlags) *cobra.Command {
 			daemonProc := exec.Command(exe, cmdArgs...)
 			daemonProc.Stdout = logFile
 			daemonProc.Stderr = logFile
-			daemonProc.SysProcAttr = &syscall.SysProcAttr{
-				Setsid: true, // Detach from terminal.
-			}
+			detachProcess(daemonProc)
 
 			if err := daemonProc.Start(); err != nil {
 				_ = logFile.Close()
@@ -186,29 +178,22 @@ func newDaemonStopCmd(flags *rootFlags) *cobra.Command {
 				return nil
 			}
 
-			proc, err := os.FindProcess(pid)
-			if err != nil {
-				return fmt.Errorf("find process %d: %w", pid, err)
-			}
-
-			// Send SIGTERM for graceful shutdown.
-			if err := proc.Signal(syscall.SIGTERM); err != nil {
-				return fmt.Errorf("send SIGTERM to pid %d: %w", pid, err)
+			if err := signalTerminate(pid); err != nil {
+				return fmt.Errorf("stop pid %d: %w", pid, err)
 			}
 
 			// Wait up to 10 seconds for the process to exit.
 			stopped := false
 			for i := 0; i < 20; i++ {
 				time.Sleep(500 * time.Millisecond)
-				if err := proc.Signal(syscall.Signal(0)); err != nil {
+				if !isProcessAlive(pid) {
 					stopped = true
 					break
 				}
 			}
 
 			if !stopped {
-				// Force kill.
-				_ = proc.Signal(syscall.SIGKILL)
+				signalKill(pid)
 				time.Sleep(500 * time.Millisecond)
 			}
 
