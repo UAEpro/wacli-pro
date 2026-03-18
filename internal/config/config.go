@@ -6,12 +6,12 @@ import (
 )
 
 func DefaultStoreDir() string {
-	if dir := os.Getenv("WACLI_STORE_DIR"); dir != "" {
+	if dir := os.Getenv("WACLI_PRO_STORE_DIR"); dir != "" {
 		return dir
 	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
-		return ".wacli"
+		return ".wacli-pro"
 	}
-	return filepath.Join(home, ".wacli")
+	return filepath.Join(home, ".wacli-pro")
 }

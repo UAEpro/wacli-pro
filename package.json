@@ -1,11 +1,11 @@
 {
-  "name": "wacli",
+  "name": "wacli-pro",
   "private": true,
   "packageManager": "pnpm@10.23.0",
   "scripts": {
-    "wacli": "bash -lc 'pnpm -s build >/dev/null && exec ./dist/wacli \"$@\"' _",
-    "build": "mkdir -p dist && CGO_CFLAGS=\"${CGO_CFLAGS:+$CGO_CFLAGS }-Wno-error=missing-braces\" go build -tags sqlite_fts5 -o dist/wacli ./cmd/wacli",
-    "start": "pnpm -s build && ./dist/wacli",
+    "wacli-pro": "bash -lc 'pnpm -s build >/dev/null && exec ./dist/wacli-pro \"$@\"' _",
+    "build": "mkdir -p dist && CGO_CFLAGS=\"${CGO_CFLAGS:+$CGO_CFLAGS }-Wno-error=missing-braces\" go build -tags sqlite_fts5 -o dist/wacli-pro ./cmd/wacli-pro",
+    "start": "pnpm -s build && ./dist/wacli-pro",
     "test": "pnpm -s test:go && pnpm -s test:fts",
     "test:go": "go test ./...",
     "test:fts": "go test -tags sqlite_fts5 ./...",

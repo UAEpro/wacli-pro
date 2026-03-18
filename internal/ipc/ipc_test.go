@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/steipete/wacli/internal/app"
-	"github.com/steipete/wacli/internal/ipc"
+	"github.com/UAEpro/wacli-pro/internal/app"
+	"github.com/UAEpro/wacli-pro/internal/ipc"
 )
 
 func TestRoundtrip(t *testing.T) {

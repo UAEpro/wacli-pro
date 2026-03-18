@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/steipete/wacli/internal/app"
+	"github.com/UAEpro/wacli-pro/internal/app"
 )
 
 // HandlerFunc processes an IPC request using the daemon's live App.

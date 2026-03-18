@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/steipete/wacli/internal/pathutil"
-	"github.com/steipete/wacli/internal/store"
+	"github.com/UAEpro/wacli-pro/internal/pathutil"
+	"github.com/UAEpro/wacli-pro/internal/store"
 )
 
 type mediaJob struct {

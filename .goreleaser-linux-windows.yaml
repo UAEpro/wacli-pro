@@ -1,11 +1,11 @@
 version: 2
 
-project_name: wacli
+project_name: wacli-pro
 
 builds:
-  - id: wacli_linux_amd64
-    main: ./cmd/wacli
-    binary: wacli
+  - id: wacli-pro_linux_amd64
+    main: ./cmd/wacli-pro
+    binary: wacli-pro
     env:
       - CGO_ENABLED=1
       - CGO_CFLAGS=-Wno-error=missing-braces
@@ -20,9 +20,9 @@ builds:
     goarch:
       - amd64
 
-  - id: wacli_linux_arm64
-    main: ./cmd/wacli
-    binary: wacli
+  - id: wacli-pro_linux_arm64
+    main: ./cmd/wacli-pro
+    binary: wacli-pro
     env:
       - CGO_ENABLED=1
       - CC=aarch64-linux-gnu-gcc
@@ -38,9 +38,9 @@ builds:
     goarch:
       - arm64
 
-  - id: wacli_windows_amd64
-    main: ./cmd/wacli
-    binary: wacli
+  - id: wacli-pro_windows_amd64
+    main: ./cmd/wacli-pro
+    binary: wacli-pro
     env:
       - CGO_ENABLED=1
       - CC=x86_64-w64-mingw32-gcc

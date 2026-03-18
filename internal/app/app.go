@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/steipete/wacli/internal/out"
-	"github.com/steipete/wacli/internal/store"
-	"github.com/steipete/wacli/internal/wa"
+	"github.com/UAEpro/wacli-pro/internal/out"
+	"github.com/UAEpro/wacli-pro/internal/store"
+	"github.com/UAEpro/wacli-pro/internal/wa"
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/proto/waCommon"

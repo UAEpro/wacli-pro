@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/steipete/wacli/internal/out"
+	"github.com/UAEpro/wacli-pro/internal/out"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/proto/waCommon"
 	"go.mau.fi/whatsmeow/proto/waHistorySync"

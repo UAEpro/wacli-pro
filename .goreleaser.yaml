@@ -1,11 +1,11 @@
 version: 2
 
-project_name: wacli
+project_name: wacli-pro
 
 builds:
-  - id: wacli
-    main: ./cmd/wacli
-    binary: wacli
+  - id: wacli-pro
+    main: ./cmd/wacli-pro
+    binary: wacli-pro
     env:
       - CGO_ENABLED=1
     flags:
@@ -21,10 +21,10 @@ builds:
       - arm64
 
 universal_binaries:
-  - id: wacli
+  - id: wacli-pro
     ids:
-      - wacli
-    name_template: wacli
+      - wacli-pro
+    name_template: wacli-pro
     replace: true
 
 archives:

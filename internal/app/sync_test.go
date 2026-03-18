@@ -324,3 +324,45 @@ func TestSyncOnceIdleExit(t *testing.T) {
 		t.Fatalf("expected to exit quickly on idle, took %s", time.Since(start))
 	}
 }
+
+func TestSyncOnceMaxDuration(t *testing.T) {
+	a := newTestApp(t)
+	f := newFakeWA()
+	a.wa = f
+
+	// Simulate an event stream that never stops by continuously emitting
+	// events from a goroutine, so idle never triggers.
+	chat := types.JID{User: "999", Server: types.DefaultUserServer}
+	go func() {
+		for i := 0; i < 100; i++ {
+			time.Sleep(50 * time.Millisecond)
+			f.emit(&events.Message{
+				Info: types.MessageInfo{
+					ID:        types.MessageID("flood-" + time.Now().Format("150405.000")),
+					Timestamp: time.Now(),
+					MessageSource: types.MessageSource{
+						Chat:   chat,
+						Sender: chat,
+					},
+					PushName: "Spammer",
+				},
+				Message: &waProto.Message{Conversation: proto.String("ping")},
+			})
+		}
+	}()
+
+	start := time.Now()
+	_, err := a.Sync(context.Background(), SyncOptions{
+		Mode:        SyncModeOnce,
+		AllowQR:     false,
+		IdleExit:    10 * time.Second, // would take 10s to idle
+		MaxDuration: 500 * time.Millisecond, // but hard timeout at 500ms
+	})
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	elapsed := time.Since(start)
+	if elapsed > 2*time.Second {
+		t.Fatalf("MaxDuration should have stopped sync in ~500ms, took %s", elapsed)
+	}
+}

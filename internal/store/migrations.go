@@ -25,6 +25,7 @@ var schemaMigrations = []migration{
 	{version: 5, name: "groups is_member column", up: migrateGroupsIsMember},
 	{version: 6, name: "messages revoked column", up: migrateMessagesRevoked},
 	{version: 7, name: "chat state columns", up: migrateChatState},
+	{version: 8, name: "performance indexes", up: migratePerformanceIndexes},
 }
 
 func (d *DB) ensureSchema() error {
@@ -354,6 +355,20 @@ func (d *DB) tableHasColumn(table, column string) (bool, error) {
 		}
 	}
 	return false, rows.Err()
+}
+
+func migratePerformanceIndexes(d *DB) error {
+	indexes := []string{
+		"CREATE INDEX IF NOT EXISTS idx_chats_kind ON chats(kind)",
+		"CREATE INDEX IF NOT EXISTS idx_contacts_push_name ON contacts(push_name)",
+		"CREATE INDEX IF NOT EXISTS idx_groups_name ON groups(name)",
+	}
+	for _, ddl := range indexes {
+		if _, err := d.sql.Exec(ddl); err != nil {
+			return fmt.Errorf("create index: %w", err)
+		}
+	}
+	return nil
 }
 
 func migrateGroupsIsMember(d *DB) error {

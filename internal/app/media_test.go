@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/steipete/wacli/internal/store"
+	"github.com/UAEpro/wacli-pro/internal/store"
 )
 
 func TestDownloadMediaJobMarksDownloaded(t *testing.T) {

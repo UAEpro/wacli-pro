@@ -90,6 +90,61 @@ func TestEventHandlerRegistrationDoesNotCallUnderLock(t *testing.T) {
 	check("RemoveEventHandler", "RemoveEventHandler")
 }
 
+// TestSendMethodsDoNotCallUnderLock verifies that Send* methods unlock mu
+// before calling into whatsmeow.
+func TestSendMethodsDoNotCallUnderLock(t *testing.T) {
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("runtime.Caller failed")
+	}
+	clientPath := filepath.Join(filepath.Dir(thisFile), "client.go")
+	src, err := os.ReadFile(clientPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", clientPath, err)
+	}
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, clientPath, src, 0)
+	if err != nil {
+		t.Fatalf("parse %s: %v", clientPath, err)
+	}
+
+	// Verify that methods that call into whatsmeow do Lock → copy → Unlock
+	// and never use defer Unlock.
+	methods := []string{
+		"SendText", "SendTextReply", "SendProtoMessage",
+		"RevokeMessage", "EditMessage", "Upload",
+		"Connect", "DecryptReaction",
+	}
+
+	for _, method := range methods {
+		var fn *ast.FuncDecl
+		for _, d := range f.Decls {
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok || fd.Recv == nil || fd.Name == nil {
+				continue
+			}
+			if fd.Name.Name == method {
+				fn = fd
+				break
+			}
+		}
+		if fn == nil || fn.Body == nil {
+			continue // method may be in another file (groups.go, appstate.go)
+		}
+
+		// Check for defer mu.Unlock() which would hold the lock during
+		// whatsmeow calls.
+		for _, st := range fn.Body.List {
+			if ds, ok := st.(*ast.DeferStmt); ok {
+				if isCallToMuUnlock(ds.Call) {
+					t.Errorf("%s uses defer mu.Unlock(); expected explicit unlock before whatsmeow calls", method)
+				}
+			}
+		}
+	}
+}
+
 func isCallToMethod(call *ast.CallExpr, method string) bool {
 	if call == nil {
 		return false
