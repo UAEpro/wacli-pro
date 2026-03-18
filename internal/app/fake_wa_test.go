@@ -233,6 +233,18 @@ func (f *fakeWA) Upload(ctx context.Context, data []byte, mediaType whatsmeow.Me
 	return whatsmeow.UploadResponse{}, nil
 }
 
+func (f *fakeWA) SendReaction(ctx context.Context, chat types.JID, targetMsgID types.MessageID, emoji string) error {
+	return nil
+}
+
+func (f *fakeWA) SendLocation(ctx context.Context, to types.JID, lat, lng float64, name, address string) (types.MessageID, error) {
+	return types.MessageID("loc-msgid"), nil
+}
+
+func (f *fakeWA) SendPresence(ctx context.Context, state types.Presence) error {
+	return nil
+}
+
 func (f *fakeWA) SendChatPresence(ctx context.Context, jid types.JID, state types.ChatPresence, media types.ChatPresenceMedia) error {
 	return nil
 }

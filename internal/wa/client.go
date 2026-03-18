@@ -136,9 +136,6 @@ func (c *Client) Connect(ctx context.Context, opts ConnectOptions) error {
 	}
 
 	if authed {
-		// Mark as unavailable so the phone still gets notifications
-		// and the user doesn't appear "online" 24/7 to contacts.
-		_ = cli.SendPresence(ctx, types.PresenceUnavailable)
 		return nil
 	}
 
@@ -490,6 +487,17 @@ func (c *Client) GetGroupInfo(ctx context.Context, jid types.JID) (*types.GroupI
 		return nil, fmt.Errorf("not connected")
 	}
 	return cli.GetGroupInfo(ctx, jid)
+}
+
+// SendPresence sets the user's global presence (available/unavailable).
+func (c *Client) SendPresence(ctx context.Context, state types.Presence) error {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return fmt.Errorf("not connected")
+	}
+	return cli.SendPresence(ctx, state)
 }
 
 // SendChatPresence sends a typing or paused indicator to a chat.

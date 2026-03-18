@@ -31,6 +31,7 @@ type SyncOptions struct {
 	RefreshContacts bool
 	RefreshGroups   bool
 	IdleExit        time.Duration // only used for bootstrap/once
+	MaxDuration     time.Duration // hard timeout for bootstrap/once (0 = no limit)
 	Verbosity       int           // future
 }
 
@@ -44,6 +45,14 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 	}
 	if (opts.Mode == SyncModeBootstrap || opts.Mode == SyncModeOnce) && opts.IdleExit <= 0 {
 		opts.IdleExit = 30 * time.Second
+	}
+
+	// Hard timeout for bootstrap/once prevents hanging forever when
+	// WhatsApp keeps sending events and idle never triggers (#87).
+	if opts.MaxDuration > 0 && opts.Mode != SyncModeFollow {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, opts.MaxDuration)
+		defer cancel()
 	}
 
 	if err := a.OpenWA(); err != nil {
@@ -193,6 +202,9 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 				fmt.Fprintf(os.Stderr, "\rSynced %d messages...", n)
 			}
 		case *events.Connected:
+			// Mark as unavailable so the user doesn't appear "online" 24/7
+			// and the phone keeps receiving push notifications.
+			_ = a.wa.SendPresence(ctx, types.PresenceUnavailable)
 			if a.events.Enabled() {
 				a.events.Emit("connected", nil)
 			} else {
@@ -208,6 +220,9 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 			case disconnected <- struct{}{}:
 			default:
 			}
+		// Chat state events are best-effort metadata persistence inside the event
+		// handler goroutine. Errors here must not interrupt the sync loop, so we
+		// intentionally discard them with _ =.
 		case *events.Archive:
 			if v.Action != nil {
 				_ = a.db.SetChatArchived(v.JID.String(), v.Action.GetArchived())
@@ -358,7 +373,9 @@ func (a *App) storeParsedMessage(ctx context.Context, pm wa.ParsedMessage) error
 		return err
 	}
 
-	// Best-effort: store contact info for DMs.
+	// Best-effort: store contact info for DMs. Errors are intentionally
+	// discarded (_ =) because this runs inside the sync event loop and
+	// must not block message storage.
 	if pm.Chat.Server == types.DefaultUserServer {
 		normalizedChat := pm.Chat.ToNonAD()
 		if info, err := a.wa.GetContact(ctx, normalizedChat); err == nil {
