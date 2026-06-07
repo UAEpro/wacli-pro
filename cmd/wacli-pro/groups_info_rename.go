@@ -60,6 +60,17 @@ func newGroupsInfoCmd(flags *rootFlags) *cobra.Command {
 				info.GroupCreated.Local().Format(time.RFC3339),
 				len(info.Participants),
 			)
+			if info.GroupTopic.Topic != "" {
+				fmt.Fprintf(os.Stdout, "Topic: %s\n", info.GroupTopic.Topic)
+			}
+			fmt.Fprintf(os.Stdout, "Locked: %v\n", info.IsLocked)
+			fmt.Fprintf(os.Stdout, "Announce: %v\n", info.IsAnnounce)
+			if info.MemberAddMode != "" {
+				fmt.Fprintf(os.Stdout, "Member add mode: %s\n", info.MemberAddMode)
+			}
+			if info.IsJoinApprovalRequired {
+				fmt.Fprintf(os.Stdout, "Join approval: required\n")
+			}
 			return nil
 		},
 	}

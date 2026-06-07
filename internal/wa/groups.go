@@ -62,6 +62,66 @@ func (c *Client) UpdateGroupParticipants(ctx context.Context, group types.JID, u
 	return cli.UpdateGroupParticipants(ctx, group, users, a)
 }
 
+func (c *Client) SetGroupTopic(ctx context.Context, jid types.JID, topic string) error {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return fmt.Errorf("not connected")
+	}
+	return cli.SetGroupTopic(ctx, jid, "", "", topic)
+}
+
+func (c *Client) SetGroupPhoto(ctx context.Context, jid types.JID, avatar []byte) (string, error) {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return "", fmt.Errorf("not connected")
+	}
+	return cli.SetGroupPhoto(ctx, jid, avatar)
+}
+
+func (c *Client) SetGroupLocked(ctx context.Context, jid types.JID, locked bool) error {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return fmt.Errorf("not connected")
+	}
+	return cli.SetGroupLocked(ctx, jid, locked)
+}
+
+func (c *Client) SetGroupAnnounce(ctx context.Context, jid types.JID, announce bool) error {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return fmt.Errorf("not connected")
+	}
+	return cli.SetGroupAnnounce(ctx, jid, announce)
+}
+
+func (c *Client) SetGroupJoinApprovalMode(ctx context.Context, jid types.JID, mode bool) error {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return fmt.Errorf("not connected")
+	}
+	return cli.SetGroupJoinApprovalMode(ctx, jid, mode)
+}
+
+func (c *Client) SetGroupMemberAddMode(ctx context.Context, jid types.JID, mode types.GroupMemberAddMode) error {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return fmt.Errorf("not connected")
+	}
+	return cli.SetGroupMemberAddMode(ctx, jid, mode)
+}
+
 func (c *Client) GetGroupInviteLink(ctx context.Context, group types.JID, reset bool) (string, error) {
 	c.mu.Lock()
 	cli := c.client

@@ -199,6 +199,54 @@ func (f *fakeWA) UpdateGroupParticipants(ctx context.Context, group types.JID, u
 	return g.Participants, nil
 }
 
+func (f *fakeWA) SetGroupTopic(ctx context.Context, jid types.JID, topic string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	g := f.groups[jid]
+	if g == nil {
+		g = &types.GroupInfo{JID: jid}
+		f.groups[jid] = g
+	}
+	g.GroupTopic.Topic = topic
+	return nil
+}
+
+func (f *fakeWA) SetGroupPhoto(ctx context.Context, jid types.JID, avatar []byte) (string, error) {
+	return "photo-id", nil
+}
+
+func (f *fakeWA) SetGroupLocked(ctx context.Context, jid types.JID, locked bool) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	g := f.groups[jid]
+	if g == nil {
+		g = &types.GroupInfo{JID: jid}
+		f.groups[jid] = g
+	}
+	g.IsLocked = locked
+	return nil
+}
+
+func (f *fakeWA) SetGroupAnnounce(ctx context.Context, jid types.JID, announce bool) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	g := f.groups[jid]
+	if g == nil {
+		g = &types.GroupInfo{JID: jid}
+		f.groups[jid] = g
+	}
+	g.IsAnnounce = announce
+	return nil
+}
+
+func (f *fakeWA) SetGroupJoinApprovalMode(ctx context.Context, jid types.JID, mode bool) error {
+	return nil
+}
+
+func (f *fakeWA) SetGroupMemberAddMode(ctx context.Context, jid types.JID, mode types.GroupMemberAddMode) error {
+	return nil
+}
+
 func (f *fakeWA) GetGroupInviteLink(ctx context.Context, group types.JID, reset bool) (string, error) {
 	return "https://chat.whatsapp.com/invite/test", nil
 }
