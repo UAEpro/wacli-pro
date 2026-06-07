@@ -9,11 +9,14 @@ Complete reference for every `wacli` command, subcommand, and flag.
 - [Global Flags](#global-flags)
 - [auth](#auth) - Authenticate with WhatsApp
 - [sync](#sync) - Sync messages
-- [messages](#messages) - List and search messages
-- [send](#send) - Send messages, files, reactions, locations
+- [messages](#messages) - List, search, and export messages
+- [send](#send) - Send messages, files, reactions, locations, polls
 - [chats](#chats) - List and manage chats
 - [contacts](#contacts) - Search and manage contacts
 - [groups](#groups) - Group management and admin settings
+- [channels](#channels) - WhatsApp channels (newsletters)
+- [profile](#profile) - Profile management
+- [store](#store) - Local store management
 - [media](#media) - Download media
 - [history](#history) - Backfill older messages
 - [presence](#presence) - Typing indicators
@@ -194,6 +197,22 @@ wacli messages delete --chat 1234567890@s.whatsapp.net --id <message-id>
 | `--chat` | string | | Chat JID (required) |
 | `--id` | string | | Message ID (required) |
 
+### messages export
+
+Export messages from a chat as JSON.
+
+```bash
+wacli messages export --chat 1234567890@s.whatsapp.net
+wacli messages export --chat 1234567890@s.whatsapp.net --after 2025-01-01 --limit 1000
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--chat` | string | | Chat JID (required) |
+| `--limit` | int | `0` | Limit results (0 = all) |
+| `--after` | string | | Only messages after time (RFC3339 or `YYYY-MM-DD`) |
+| `--before` | string | | Only messages before time (RFC3339 or `YYYY-MM-DD`) |
+
 ---
 
 ## send
@@ -305,6 +324,22 @@ wacli send forward --to 1234567890 --from-chat <source-chat> --id <message-id>
 | `--to` | string | | Recipient phone number or JID (required) |
 | `--from-chat` | string | | Source chat JID (required) |
 | `--id` | string | | Message ID to forward (required) |
+
+### send poll
+
+Send a poll with options.
+
+```bash
+wacli send poll --to 120363000000000000@g.us --question "Lunch?" --option "Pizza" --option "Sushi" --option "Tacos"
+wacli send poll --to 1234567890 --question "Pick two" --option "A" --option "B" --option "C" --max-selections 2
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--to` | string | | Recipient phone number or JID (required) |
+| `--question` | string | | Poll question (required) |
+| `--option` | string[] | | Poll option (repeatable, min 2 required) |
+| `--max-selections` | int | `1` | Max selections allowed (0 = unlimited) |
 
 ---
 
@@ -491,6 +526,19 @@ wacli --json groups info --jid 123456789@g.us  # full JSON output
 |------|------|---------|-------------|
 | `--jid` | string | | Group JID (required) |
 
+### groups create
+
+Create a new group with participants.
+
+```bash
+wacli groups create --name "Project Team" --user 1234567890 --user 9876543210
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--name` | string | | Group name, max 25 characters (required) |
+| `--user` | string[] | | Participant phone number or JID (repeatable, required) |
+
 ### groups rename
 
 Rename a group.
@@ -629,6 +677,21 @@ wacli groups join --code <invite-code>
 |------|------|---------|-------------|
 | `--code` | string | | Invite code from link (required) |
 
+### groups requests list / approve / reject
+
+Manage pending join requests (when join approval is enabled).
+
+```bash
+wacli groups requests list --jid 123456789@g.us
+wacli groups requests approve --jid 123456789@g.us --user 1234567890
+wacli groups requests reject --jid 123456789@g.us --user 1234567890 --user 9876543210
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--jid` | string | | Group JID (required) |
+| `--user` | string[] | | User phone number or JID (repeatable, required for approve/reject) |
+
 ### groups leave
 
 Leave a group.
@@ -640,6 +703,115 @@ wacli groups leave --jid 123456789@g.us
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--jid` | string | | Group JID (required) |
+
+---
+
+## channels
+
+Manage WhatsApp channels (newsletters).
+
+### channels list
+
+List channels you're subscribed to.
+
+```bash
+wacli channels list
+```
+
+### channels info
+
+Get info about a channel.
+
+```bash
+wacli channels info --jid 123456789@newsletter
+wacli channels info --invite "https://whatsapp.com/channel/..."
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--jid` | string | | Channel JID (required if no --invite) |
+| `--invite` | string | | Channel invite link or code |
+
+### channels follow / unfollow
+
+Follow (join) or unfollow (leave) a channel.
+
+```bash
+wacli channels follow --jid 123456789@newsletter
+wacli channels unfollow --jid 123456789@newsletter
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--jid` | string | | Channel JID (required) |
+
+### channels mute / unmute
+
+Mute or unmute a channel.
+
+```bash
+wacli channels mute --jid 123456789@newsletter
+wacli channels unmute --jid 123456789@newsletter
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--jid` | string | | Channel JID (required) |
+
+---
+
+## profile
+
+Manage your WhatsApp profile.
+
+### profile set-about
+
+Set your "About" text.
+
+```bash
+wacli profile set-about --text "Available"
+wacli profile set-about --text ""  # clear
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--text` | string | | About text (required) |
+
+### profile set-photo
+
+Set your profile photo (JPEG).
+
+```bash
+wacli profile set-photo --file photo.jpg
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--file` | string | | Path to JPEG photo file (required) |
+
+### profile remove-photo
+
+Remove your profile photo.
+
+```bash
+wacli profile remove-photo
+```
+
+---
+
+## store
+
+Local store management.
+
+### store stats
+
+Show database statistics.
+
+```bash
+wacli store stats
+```
+
+Output: store directory, DB file size, message count, chat count, contact count, group count.
 
 ---
 

@@ -14,7 +14,17 @@ This is a third-party tool that uses the WhatsApp Web protocol via `whatsmeow` a
 
 Core implementation is in place. See `docs/spec.md` for the full design notes.
 
-## Recent updates (0.6.0)
+## Recent updates (0.7.0)
+
+- Channels: list, info, follow/unfollow, mute/unmute WhatsApp channels (newsletters)
+- Profile: set-about, set-photo, remove-photo commands
+- Groups: create new groups, manage join requests (list/approve/reject)
+- Send: poll messages with configurable options and max selections
+- Messages: export command for JSON dumps
+- Store: stats command showing DB size and record counts
+- Full command reference at `docs/commands.md`
+
+## Previous (0.6.0)
 
 - Group admin settings: topic/description, photo, lock/unlock, announce mode, join approval, member add mode
 - Enhanced `groups info` output with group settings (locked, announce, topic, member add mode)
