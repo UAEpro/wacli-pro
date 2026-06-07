@@ -521,6 +521,16 @@ func (c *Client) Logout(ctx context.Context) error {
 	return cli.Logout(ctx)
 }
 
+func (c *Client) PairPhone(ctx context.Context, phone string) (string, error) {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return "", fmt.Errorf("not connected")
+	}
+	return cli.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+}
+
 // ResolveLIDToPN resolves a LID (Linked Identity) JID to a Phone Number JID.
 // Returns the original JID unchanged if it's not a LID or if resolution fails.
 func (c *Client) ResolveLIDToPN(ctx context.Context, jid types.JID) types.JID {

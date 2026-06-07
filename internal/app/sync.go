@@ -30,9 +30,12 @@ type SyncOptions struct {
 	DownloadMedia   bool
 	RefreshContacts bool
 	RefreshGroups   bool
-	IdleExit        time.Duration // only used for bootstrap/once
-	MaxDuration     time.Duration // hard timeout for bootstrap/once (0 = no limit)
-	Verbosity       int           // future
+	IdleExit        time.Duration                                                        // only used for bootstrap/once
+	MaxDuration     time.Duration                                                        // hard timeout for bootstrap/once (0 = no limit)
+	Verbosity       int                                                                  // future
+	MaxMessages     int64                                                                // stop syncing if total messages exceed this (0 = unlimited)
+	MaxDBSize       int64                                                                // stop syncing if DB file exceeds this size in bytes (0 = unlimited)
+	OnMessage       func(ctx context.Context, event string, data map[string]interface{}) // optional callback for each new message
 }
 
 type SyncResult struct {
@@ -55,6 +58,10 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 		defer cancel()
 	}
 
+	// Wrap context with a cancel so we can stop on limits.
+	ctx, limitCancel := context.WithCancel(ctx)
+	defer limitCancel()
+
 	if err := a.OpenWA(); err != nil {
 		return SyncResult{}, err
 	}
@@ -64,6 +71,33 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 	lastEvent.Store(time.Now().UTC().UnixNano())
 
 	disconnected := make(chan struct{}, 1)
+
+	// checkLimits returns true if any storage limit has been exceeded.
+	checkLimits := func() bool {
+		if opts.MaxMessages > 0 && messagesStored.Load() >= opts.MaxMessages {
+			if a.events.Enabled() {
+				a.events.Emit("limit_reached", map[string]interface{}{"reason": "max_messages", "count": messagesStored.Load()})
+			} else {
+				fmt.Fprintf(os.Stderr, "\nMax messages limit reached (%d), stopping.\n", opts.MaxMessages)
+			}
+			limitCancel()
+			return true
+		}
+		if opts.MaxDBSize > 0 {
+			if info, err := os.Stat(a.db.Path()); err == nil {
+				if info.Size() >= opts.MaxDBSize {
+					if a.events.Enabled() {
+						a.events.Emit("limit_reached", map[string]interface{}{"reason": "max_db_size", "size": info.Size()})
+					} else {
+						fmt.Fprintf(os.Stderr, "\nMax DB size limit reached (%d bytes), stopping.\n", info.Size())
+					}
+					limitCancel()
+					return true
+				}
+			}
+		}
+		return false
+	}
 
 	var stopMedia func()
 	var mediaJobs chan mediaJob
@@ -117,7 +151,7 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 				if err := a.storeParsedMessage(ctx, pm); err == nil {
 					messagesStored.Add(1)
 				}
-				if a.events.Enabled() {
+				{
 					data := map[string]interface{}{
 						"id":        pm.ID,
 						"chat":      pm.Chat.String(),
@@ -151,7 +185,12 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 					if pm.ReplyToID != "" {
 						data["reply_to_id"] = pm.ReplyToID
 					}
-					a.events.Emit("new_message", data)
+					if a.events.Enabled() {
+						a.events.Emit("new_message", data)
+					}
+					if opts.OnMessage != nil {
+						opts.OnMessage(ctx, "new_message", data)
+					}
 				}
 				if opts.DownloadMedia && pm.Media != nil && pm.ID != "" {
 					enqueueMedia(pm.Chat.String(), pm.ID)
@@ -165,6 +204,16 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 					fmt.Fprintf(os.Stderr, "\rSynced %d messages...", n)
 				}
 			}
+			checkLimits()
+		case *events.CallOffer:
+			callType := "voice"
+			_ = a.db.InsertCallEvent(store.CallEvent{
+				ChatJID:   v.CallCreator.String(),
+				CallerJID: v.CallCreator.String(),
+				CallID:    v.CallID,
+				Type:      callType,
+				Timestamp: v.Timestamp,
+			})
 		case *events.HistorySync:
 			nConv := len(v.Data.Conversations)
 			if a.events.Enabled() {
@@ -341,7 +390,7 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 			if time.Since(last) >= opts.IdleExit {
 				if a.events.Enabled() {
 					a.events.Emit("idle_exit", map[string]interface{}{
-						"idle_duration":  opts.IdleExit.String(),
+						"idle_duration":   opts.IdleExit.String(),
 						"messages_synced": messagesStored.Load(),
 					})
 				} else {

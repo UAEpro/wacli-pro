@@ -139,6 +139,40 @@ func parseTime(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("unsupported time format %q (use RFC3339 or YYYY-MM-DD)", s)
 }
 
+// parseByteSize parses a human-friendly byte size string like "500MB", "1GB", "100KB".
+func parseByteSize(s string) (int64, error) {
+	s = strings.TrimSpace(strings.ToUpper(s))
+	if s == "" || s == "0" {
+		return 0, nil
+	}
+	multipliers := []struct {
+		suffix string
+		mult   int64
+	}{
+		{"TB", 1024 * 1024 * 1024 * 1024},
+		{"GB", 1024 * 1024 * 1024},
+		{"MB", 1024 * 1024},
+		{"KB", 1024},
+		{"B", 1},
+	}
+	for _, m := range multipliers {
+		if strings.HasSuffix(s, m.suffix) {
+			numStr := strings.TrimSuffix(s, m.suffix)
+			numStr = strings.TrimSpace(numStr)
+			var n int64
+			if _, err := fmt.Sscanf(numStr, "%d", &n); err != nil {
+				return 0, fmt.Errorf("cannot parse %q as byte size", s)
+			}
+			return n * m.mult, nil
+		}
+	}
+	var n int64
+	if _, err := fmt.Sscanf(s, "%d", &n); err != nil {
+		return 0, fmt.Errorf("cannot parse %q as byte size (use e.g. 500MB, 1GB)", s)
+	}
+	return n, nil
+}
+
 func sanitize(s string) string {
 	return strings.TrimSpace(strings.ReplaceAll(s, "\n", " "))
 }

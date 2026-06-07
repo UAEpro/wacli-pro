@@ -26,6 +26,7 @@ var schemaMigrations = []migration{
 	{version: 6, name: "messages revoked column", up: migrateMessagesRevoked},
 	{version: 7, name: "chat state columns", up: migrateChatState},
 	{version: 8, name: "performance indexes", up: migratePerformanceIndexes},
+	{version: 9, name: "call events table", up: migrateCallEvents},
 }
 
 func (d *DB) ensureSchema() error {
@@ -381,6 +382,22 @@ func migrateGroupsIsMember(d *DB) error {
 	}
 	if _, err := d.sql.Exec(`ALTER TABLE groups ADD COLUMN is_member INTEGER NOT NULL DEFAULT 1`); err != nil {
 		return fmt.Errorf("add is_member column: %w", err)
+	}
+	return nil
+}
+
+func migrateCallEvents(d *DB) error {
+	if _, err := d.sql.Exec(`
+		CREATE TABLE IF NOT EXISTS call_events (
+			chat_jid TEXT NOT NULL,
+			caller_jid TEXT NOT NULL,
+			call_id TEXT NOT NULL,
+			type TEXT NOT NULL,
+			ts INTEGER NOT NULL,
+			PRIMARY KEY (call_id)
+		)
+	`); err != nil {
+		return fmt.Errorf("create call_events table: %w", err)
 	}
 	return nil
 }
