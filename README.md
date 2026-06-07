@@ -14,7 +14,15 @@ This is a third-party tool that uses the WhatsApp Web protocol via `whatsmeow` a
 
 Core implementation is in place. See `docs/spec.md` for the full design notes.
 
-## Recent updates (0.5.0)
+## Recent updates (0.6.0)
+
+- Group admin settings: topic/description, photo, lock/unlock, announce mode, join approval, member add mode
+- Enhanced `groups info` output with group settings (locked, announce, topic, member add mode)
+- Status/stories: post text and image/video status updates
+- Background sync daemon (`daemon start/stop/status/logs`)
+- Diagnostics (`doctor`) command
+
+## Previous (0.5.0)
 
 - Chat state: archive, pin, mute, mark-read commands
 - Message edit/delete (revoke) support
@@ -51,8 +59,17 @@ Default store directory is `~/.wacli` (override with `--store DIR` or `WACLI_STO
 # 1) Authenticate (shows QR), then bootstrap sync
 wacli auth
 
+# Check auth status
+wacli auth status
+
+# Logout (invalidate session)
+wacli auth logout
+
 # 2) Keep syncing (never shows QR; requires prior auth)
 wacli sync --follow
+
+# Sync once and exit
+wacli sync --once
 
 # Sync with NDJSON event stream (for scripting)
 wacli sync --once --events
@@ -119,12 +136,18 @@ wacli chats list --pinned
 wacli chats list --unread
 wacli chats list --archived
 
+# Show a single chat
+wacli chats show --jid 1234567890@s.whatsapp.net
+
 # Archive/unarchive, pin/unpin, mute/unmute, mark read/unread
 wacli chats archive --jid 1234567890@s.whatsapp.net
 wacli chats unarchive --jid 1234567890@s.whatsapp.net
 wacli chats pin --jid 1234567890@s.whatsapp.net
+wacli chats unpin --jid 1234567890@s.whatsapp.net
 wacli chats mute --jid 1234567890@s.whatsapp.net --duration 8h
+wacli chats unmute --jid 1234567890@s.whatsapp.net
 wacli chats mark-read --jid 1234567890@s.whatsapp.net
+wacli chats mark-unread --jid 1234567890@s.whatsapp.net
 ```
 
 ## Contacts
@@ -133,11 +156,16 @@ wacli chats mark-read --jid 1234567890@s.whatsapp.net
 # Search contacts
 wacli contacts search "alice"
 
+# Show a single contact
+wacli contacts show --jid 1234567890@s.whatsapp.net
+
 # Set a local alias
 wacli contacts alias set --jid 1234567890@s.whatsapp.net --alias "Alice"
+wacli contacts alias rm --jid 1234567890@s.whatsapp.net
 
 # Tag contacts
 wacli contacts tags add --jid 1234567890@s.whatsapp.net --tag "work"
+wacli contacts tags rm --jid 1234567890@s.whatsapp.net --tag "work"
 
 # Refresh contacts from WhatsApp
 wacli contacts refresh
@@ -149,19 +177,52 @@ wacli contacts refresh
 # List groups
 wacli groups list
 
-# Get group info (live from WhatsApp)
+# Get group info (live from WhatsApp, shows settings)
 wacli groups info --jid 123456789@g.us
+
+# Refresh all groups from WhatsApp
+wacli groups refresh
 
 # Rename a group
 wacli groups rename --jid 123456789@g.us --name "New name"
 
+# Set group description/topic
+wacli groups topic --jid 123456789@g.us --topic "Group description here"
+wacli groups topic --jid 123456789@g.us --topic ""  # clear description
+
+# Set or remove group photo (JPEG)
+wacli groups photo --jid 123456789@g.us --file photo.jpg
+wacli groups photo --jid 123456789@g.us --remove
+
+# Lock/unlock group settings (admin-only editing)
+wacli groups lock --jid 123456789@g.us    # only admins can edit group info
+wacli groups unlock --jid 123456789@g.us  # all participants can edit
+
+# Announce mode (admin-only messaging)
+wacli groups announce --jid 123456789@g.us    # only admins can send messages
+wacli groups unannounce --jid 123456789@g.us  # all participants can send
+
+# Join approval (require admin approval to join)
+wacli groups join-approval --jid 123456789@g.us --on
+wacli groups join-approval --jid 123456789@g.us --off
+
+# Who can add members
+wacli groups member-add-mode --jid 123456789@g.us --mode admin  # admins only
+wacli groups member-add-mode --jid 123456789@g.us --mode all    # all members
+
 # Manage participants
 wacli groups participants add --jid 123456789@g.us --user 1234567890
 wacli groups participants remove --jid 123456789@g.us --user 1234567890
+wacli groups participants promote --jid 123456789@g.us --user 1234567890
+wacli groups participants demote --jid 123456789@g.us --user 1234567890
 
 # Invite links
 wacli groups invite link get --jid 123456789@g.us
+wacli groups invite link revoke --jid 123456789@g.us
 wacli groups join --code <invite-code>
+
+# Leave a group
+wacli groups leave --jid 123456789@g.us
 ```
 
 ## Media
@@ -176,10 +237,50 @@ wacli media download --chat 1234567890@s.whatsapp.net --id <message-id> --output
 
 ```bash
 # Send typing indicator
-wacli presence typing --jid 1234567890@s.whatsapp.net
+wacli presence typing --to 1234567890
+
+# Send recording (audio) indicator
+wacli presence typing --to 1234567890 --media audio
 
 # Send paused indicator
-wacli presence paused --jid 1234567890@s.whatsapp.net
+wacli presence paused --to 1234567890
+```
+
+## Status (stories)
+
+```bash
+# Post a text status
+wacli status text --text "Hello world"
+
+# Post an image/video status
+wacli status file --file photo.jpg --caption "Check this out"
+```
+
+## Daemon (background sync)
+
+```bash
+# Start background sync daemon
+wacli daemon start
+wacli daemon start --download-media --refresh-contacts --refresh-groups
+
+# Check daemon status
+wacli daemon status
+
+# View daemon logs
+wacli daemon logs
+wacli daemon logs -f     # follow (like tail -f)
+wacli daemon logs -n 100 # last 100 lines
+
+# Stop daemon
+wacli daemon stop
+```
+
+## Diagnostics
+
+```bash
+# Check store, auth, and search status
+wacli doctor
+wacli doctor --connect  # also test WhatsApp connection
 ```
 
 ## Backfilling older history
