@@ -1,6 +1,28 @@
 # Changelog
 
-## 0.5.0 - Unreleased
+## 1.1.0 - 2026-06-07
+
+### Added
+
+- Group admin: `groups topic` command to set/clear group description.
+- Group admin: `groups photo` command to set/remove group photo (JPEG).
+- Group admin: `groups lock` / `groups unlock` commands to control admin-only editing of group info.
+- Group admin: `groups announce` / `groups unannounce` commands to toggle admin-only messaging.
+- Group admin: `groups join-approval` command to require admin approval for new members.
+- Group admin: `groups member-add-mode` command to control who can add members (admin or all).
+- Group info: enhanced output now shows topic, locked status, announce mode, member add mode, and join approval.
+- Status: `status text` and `status file` commands for posting to WhatsApp Status (stories).
+- Daemon: `daemon start/stop/status/logs` commands for background sync.
+- Diagnostics: `doctor --connect` for testing WhatsApp connection.
+- Auth: `auth status` and `auth logout` subcommands.
+- Presence: typing and recording indicators with `--media audio`.
+
+### Docs
+
+- New `docs/commands.md` — comprehensive command reference covering every command, subcommand, flag, and usage example.
+- README: updated with all previously undocumented commands and new group admin features.
+
+## 0.5.0 - 2026-06-07
 
 ### Added
 
