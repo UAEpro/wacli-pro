@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/UAEpro/wacli-pro/internal/out"
 	"github.com/UAEpro/wacli-pro/internal/store"
 	"github.com/UAEpro/wacli-pro/internal/wa"
+	"github.com/spf13/cobra"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/types"
 )
@@ -37,6 +37,7 @@ func newSendTextCmd(flags *rootFlags) *cobra.Command {
 	var message string
 	var replyTo string
 	var replyChat string
+	var noPreview bool
 
 	cmd := &cobra.Command{
 		Use:   "text",
@@ -119,6 +120,34 @@ func newSendTextCmd(flags *rootFlags) *cobra.Command {
 					return err
 				}
 				msgID = id
+			} else if !noPreview && wa.URLRegex.MatchString(message) {
+				// Attempt link preview if the message contains a URL.
+				preview := wa.FetchLinkPreview(ctx, message)
+				if preview != nil {
+					text := message
+					matchedURL := preview.URL
+					title := preview.Title
+					desc := preview.Description
+					msg := &waProto.Message{
+						ExtendedTextMessage: &waProto.ExtendedTextMessage{
+							Text:        &text,
+							MatchedText: &matchedURL,
+							Title:       &title,
+							Description: &desc,
+						},
+					}
+					id, err := a.WA().SendProtoMessage(ctx, toJID, msg)
+					if err != nil {
+						return err
+					}
+					msgID = id
+				} else {
+					id, err := a.WA().SendText(ctx, toJID, message)
+					if err != nil {
+						return err
+					}
+					msgID = id
+				}
 			} else {
 				id, err := a.WA().SendText(ctx, toJID, message)
 				if err != nil {
@@ -159,5 +188,6 @@ func newSendTextCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&message, "message", "", "message text")
 	cmd.Flags().StringVar(&replyTo, "reply-to", "", "message id to reply to (stanza id)")
 	cmd.Flags().StringVar(&replyChat, "reply-chat", "", "chat JID/number where the reply-to message lives (defaults to --to)")
+	cmd.Flags().BoolVar(&noPreview, "no-preview", false, "disable link preview generation")
 	return cmd
 }

@@ -5,23 +5,25 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
-	"github.com/mdp/qrterminal/v3"
-	"github.com/spf13/cobra"
 	appPkg "github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/UAEpro/wacli-pro/internal/out"
+	"github.com/mdp/qrterminal/v3"
+	"github.com/spf13/cobra"
 )
 
 func newAuthCmd(flags *rootFlags) *cobra.Command {
 	var follow bool
 	var idleExit time.Duration
 	var downloadMedia bool
+	var phone string
 
 	cmd := &cobra.Command{
 		Use:   "auth",
-		Short: "Authenticate with WhatsApp (QR) and bootstrap sync",
+		Short: "Authenticate with WhatsApp (QR or phone pairing) and bootstrap sync",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
@@ -43,6 +45,9 @@ func newAuthCmd(flags *rootFlags) *cobra.Command {
 			} else {
 				fmt.Fprintln(os.Stderr, "Starting authentication…")
 			}
+
+			var pairOnce sync.Once
+
 			res, err := a.Sync(ctx, appPkg.SyncOptions{
 				Mode:            mode,
 				AllowQR:         true,
@@ -51,12 +56,27 @@ func newAuthCmd(flags *rootFlags) *cobra.Command {
 				RefreshGroups:   true,
 				IdleExit:        idleExit,
 				OnQRCode: func(code string) {
-					if ev.Enabled() {
-						ev.Emit("qr_code", map[string]interface{}{"code": code})
+					if phone != "" {
+						pairOnce.Do(func() {
+							pairingCode, pairErr := a.WA().PairPhone(ctx, phone)
+							if pairErr != nil {
+								fmt.Fprintf(os.Stderr, "Phone pairing error: %v\n", pairErr)
+								return
+							}
+							if ev.Enabled() {
+								ev.Emit("pairing_code", map[string]interface{}{"code": pairingCode})
+							} else {
+								fmt.Fprintf(os.Stderr, "\nEnter this pairing code on your phone: %s\n", pairingCode)
+							}
+						})
 					} else {
-						fmt.Fprintln(os.Stderr, "\nScan this QR code with WhatsApp (Linked Devices):")
-						qrterminal.GenerateHalfBlock(code, qrterminal.M, os.Stderr)
-						fmt.Fprintln(os.Stderr)
+						if ev.Enabled() {
+							ev.Emit("qr_code", map[string]interface{}{"code": code})
+						} else {
+							fmt.Fprintln(os.Stderr, "\nScan this QR code with WhatsApp (Linked Devices):")
+							qrterminal.GenerateHalfBlock(code, qrterminal.M, os.Stderr)
+							fmt.Fprintln(os.Stderr)
+						}
 					}
 				},
 			})
@@ -79,6 +99,7 @@ func newAuthCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().BoolVar(&follow, "follow", false, "keep syncing after auth")
 	cmd.Flags().DurationVar(&idleExit, "idle-exit", 30*time.Second, "exit after being idle (bootstrap/once modes)")
 	cmd.Flags().BoolVar(&downloadMedia, "download-media", false, "download media in the background during sync")
+	cmd.Flags().StringVar(&phone, "phone", "", "phone number for pairing code auth (e.g. +1234567890)")
 
 	cmd.AddCommand(newAuthStatusCmd(flags))
 	cmd.AddCommand(newAuthLogoutCmd(flags))

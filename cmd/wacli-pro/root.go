@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/UAEpro/wacli-pro/internal/config"
 	"github.com/UAEpro/wacli-pro/internal/lock"
 	"github.com/UAEpro/wacli-pro/internal/out"
+	"github.com/spf13/cobra"
 )
 
 var version = "0.5.0"
@@ -55,6 +55,7 @@ func execute(args []string) error {
 	rootCmd.AddCommand(newChannelsCmd(&flags))
 	rootCmd.AddCommand(newProfileCmd(&flags))
 	rootCmd.AddCommand(newStoreCmd(&flags))
+	rootCmd.AddCommand(newCallsCmd(&flags))
 	rootCmd.AddCommand(newHistoryCmd(&flags))
 	rootCmd.AddCommand(newPresenceCmd(&flags))
 	rootCmd.AddCommand(newDaemonCmd(&flags))

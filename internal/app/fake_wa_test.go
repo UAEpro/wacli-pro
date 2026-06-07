@@ -377,6 +377,10 @@ func (f *fakeWA) Logout(ctx context.Context) error {
 	return nil
 }
 
+func (f *fakeWA) PairPhone(ctx context.Context, phone string) (string, error) {
+	return "ABCD-EFGH", nil
+}
+
 func (f *fakeWA) ArchiveChat(ctx context.Context, target types.JID, archive bool, lastMsgTS time.Time, lastMsgKey *waCommon.MessageKey) error {
 	return nil
 }

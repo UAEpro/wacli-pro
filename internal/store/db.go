@@ -48,6 +48,10 @@ func Open(path string) (*DB, error) {
 	return s, nil
 }
 
+func (d *DB) Path() string {
+	return d.path
+}
+
 func (d *DB) Close() error {
 	if d == nil || d.sql == nil {
 		return nil

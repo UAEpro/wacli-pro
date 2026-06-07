@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/spf13/cobra"
 	appPkg "github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/UAEpro/wacli-pro/internal/ipc"
 	"github.com/UAEpro/wacli-pro/internal/out"
+	"github.com/spf13/cobra"
 )
 
 func newSyncCmd(flags *rootFlags) *cobra.Command {
@@ -22,6 +22,9 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 	var downloadMedia bool
 	var refreshContacts bool
 	var refreshGroups bool
+	var webhookURL string
+	var maxMessages int64
+	var maxDBSize string
 
 	cmd := &cobra.Command{
 		Use:   "sync",
@@ -59,6 +62,16 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 				mode = appPkg.SyncModeOnce
 			}
 
+			// Parse max DB size.
+			var maxDBSizeBytes int64
+			if maxDBSize != "" {
+				parsed, parseErr := parseByteSize(maxDBSize)
+				if parseErr != nil {
+					return fmt.Errorf("invalid --max-db-size: %w", parseErr)
+				}
+				maxDBSizeBytes = parsed
+			}
+
 			// Start IPC server so other wacli commands can delegate to this
 			// process while it holds the lock and WhatsApp connection.
 			var ipcServer *ipc.Server
@@ -78,6 +91,12 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 				}
 			}
 
+			// Set up webhook sender if URL is provided.
+			var webhook *webhookSender
+			if webhookURL != "" {
+				webhook = newWebhookSender(webhookURL)
+			}
+
 			res, err := a.Sync(ctx, appPkg.SyncOptions{
 				Mode:            mode,
 				AllowQR:         false,
@@ -87,6 +106,16 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 				RefreshGroups:   refreshGroups,
 				IdleExit:        idleExit,
 				MaxDuration:     maxDuration,
+				MaxMessages:     maxMessages,
+				MaxDBSize:       maxDBSizeBytes,
+				OnMessage: func(eventCtx context.Context, event string, data map[string]interface{}) {
+					if webhook != nil {
+						// Best-effort: fire webhook but don't block sync on errors.
+						go func() {
+							_ = webhook.Send(eventCtx, event, data)
+						}()
+					}
+				},
 			})
 			if ipcServer != nil {
 				_ = ipcServer.Close()
@@ -113,5 +142,8 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().BoolVar(&downloadMedia, "download-media", false, "download media in the background during sync")
 	cmd.Flags().BoolVar(&refreshContacts, "refresh-contacts", false, "refresh contacts from session store into local DB")
 	cmd.Flags().BoolVar(&refreshGroups, "refresh-groups", false, "refresh joined groups (live) into local DB")
+	cmd.Flags().StringVar(&webhookURL, "webhook", "", "URL to POST message events to (best-effort delivery)")
+	cmd.Flags().Int64Var(&maxMessages, "max-messages", 0, "stop syncing after this many messages (0 = unlimited)")
+	cmd.Flags().StringVar(&maxDBSize, "max-db-size", "", "stop syncing if DB exceeds this size (e.g. 500MB, 1GB; 0 = unlimited)")
 	return cmd
 }
