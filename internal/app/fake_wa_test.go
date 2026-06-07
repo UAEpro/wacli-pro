@@ -255,7 +255,52 @@ func (f *fakeWA) JoinGroupWithLink(ctx context.Context, code string) (types.JID,
 	return types.ParseJID("12345@g.us")
 }
 
+func (f *fakeWA) CreateGroup(ctx context.Context, name string, participants []types.JID) (*types.GroupInfo, error) {
+	jid, _ := types.ParseJID("newgroup@g.us")
+	info := &types.GroupInfo{JID: jid}
+	info.GroupName.Name = name
+	for _, p := range participants {
+		info.Participants = append(info.Participants, types.GroupParticipant{JID: p})
+	}
+	return info, nil
+}
+
+func (f *fakeWA) GetGroupRequestParticipants(ctx context.Context, jid types.JID) ([]types.GroupParticipantRequest, error) {
+	return nil, nil
+}
+
+func (f *fakeWA) UpdateGroupRequestParticipants(ctx context.Context, jid types.JID, users []types.JID, approve bool) ([]types.GroupParticipant, error) {
+	return nil, nil
+}
+
 func (f *fakeWA) LeaveGroup(ctx context.Context, group types.JID) error { return nil }
+
+func (f *fakeWA) GetSubscribedNewsletters(ctx context.Context) ([]*types.NewsletterMetadata, error) {
+	return nil, nil
+}
+
+func (f *fakeWA) GetNewsletterInfo(ctx context.Context, jid types.JID) (*types.NewsletterMetadata, error) {
+	return &types.NewsletterMetadata{ID: jid}, nil
+}
+
+func (f *fakeWA) GetNewsletterInfoWithInvite(ctx context.Context, key string) (*types.NewsletterMetadata, error) {
+	return &types.NewsletterMetadata{}, nil
+}
+
+func (f *fakeWA) FollowNewsletter(ctx context.Context, jid types.JID) error   { return nil }
+func (f *fakeWA) UnfollowNewsletter(ctx context.Context, jid types.JID) error { return nil }
+func (f *fakeWA) NewsletterToggleMute(ctx context.Context, jid types.JID, mute bool) error {
+	return nil
+}
+
+func (f *fakeWA) SetStatusMessage(ctx context.Context, msg string) error { return nil }
+func (f *fakeWA) SetProfilePhoto(ctx context.Context, avatar []byte) (string, error) {
+	return "photo-id", nil
+}
+
+func (f *fakeWA) BuildPollCreation(name string, options []string, maxSelections int) *waProto.Message {
+	return &waProto.Message{}
+}
 
 func (f *fakeWA) SendText(ctx context.Context, to types.JID, text string) (types.MessageID, error) {
 	return types.MessageID("msgid"), nil

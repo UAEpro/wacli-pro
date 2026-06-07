@@ -28,6 +28,7 @@ func newSendCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newSendReactionCmd(flags))
 	cmd.AddCommand(newSendLocationCmd(flags))
 	cmd.AddCommand(newSendForwardCmd(flags))
+	cmd.AddCommand(newSendPollCmd(flags))
 	return cmd
 }
 

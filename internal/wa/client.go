@@ -540,6 +540,17 @@ func (c *Client) ResolveLIDToPN(ctx context.Context, jid types.JID) types.JID {
 	return pn
 }
 
+// BuildPollCreation builds a poll creation message.
+func (c *Client) BuildPollCreation(name string, options []string, maxSelections int) *waProto.Message {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil {
+		return nil
+	}
+	return cli.BuildPollCreation(name, options, maxSelections)
+}
+
 // Reconnect loop helper.
 func (c *Client) ReconnectWithBackoff(ctx context.Context, minDelay, maxDelay time.Duration) error {
 	delay := minDelay

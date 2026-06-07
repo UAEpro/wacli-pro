@@ -151,3 +151,40 @@ func (c *Client) LeaveGroup(ctx context.Context, group types.JID) error {
 	}
 	return cli.LeaveGroup(ctx, group)
 }
+
+func (c *Client) CreateGroup(ctx context.Context, name string, participants []types.JID) (*types.GroupInfo, error) {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return nil, fmt.Errorf("not connected")
+	}
+	return cli.CreateGroup(ctx, whatsmeow.ReqCreateGroup{
+		Name:         name,
+		Participants: participants,
+	})
+}
+
+func (c *Client) GetGroupRequestParticipants(ctx context.Context, jid types.JID) ([]types.GroupParticipantRequest, error) {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return nil, fmt.Errorf("not connected")
+	}
+	return cli.GetGroupRequestParticipants(ctx, jid)
+}
+
+func (c *Client) UpdateGroupRequestParticipants(ctx context.Context, jid types.JID, users []types.JID, approve bool) ([]types.GroupParticipant, error) {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || !cli.IsConnected() {
+		return nil, fmt.Errorf("not connected")
+	}
+	action := whatsmeow.ParticipantChangeReject
+	if approve {
+		action = whatsmeow.ParticipantChangeApprove
+	}
+	return cli.UpdateGroupRequestParticipants(ctx, jid, users, action)
+}

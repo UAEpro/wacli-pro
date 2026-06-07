@@ -45,7 +45,25 @@ type WAClient interface {
 	SetGroupMemberAddMode(ctx context.Context, jid types.JID, mode types.GroupMemberAddMode) error
 	GetGroupInviteLink(ctx context.Context, group types.JID, reset bool) (string, error)
 	JoinGroupWithLink(ctx context.Context, code string) (types.JID, error)
+	CreateGroup(ctx context.Context, name string, participants []types.JID) (*types.GroupInfo, error)
+	GetGroupRequestParticipants(ctx context.Context, jid types.JID) ([]types.GroupParticipantRequest, error)
+	UpdateGroupRequestParticipants(ctx context.Context, jid types.JID, users []types.JID, approve bool) ([]types.GroupParticipant, error)
 	LeaveGroup(ctx context.Context, group types.JID) error
+
+	// Newsletters/Channels
+	GetSubscribedNewsletters(ctx context.Context) ([]*types.NewsletterMetadata, error)
+	GetNewsletterInfo(ctx context.Context, jid types.JID) (*types.NewsletterMetadata, error)
+	GetNewsletterInfoWithInvite(ctx context.Context, key string) (*types.NewsletterMetadata, error)
+	FollowNewsletter(ctx context.Context, jid types.JID) error
+	UnfollowNewsletter(ctx context.Context, jid types.JID) error
+	NewsletterToggleMute(ctx context.Context, jid types.JID, mute bool) error
+
+	// Profile
+	SetStatusMessage(ctx context.Context, msg string) error
+	SetProfilePhoto(ctx context.Context, avatar []byte) (string, error)
+
+	// Polls
+	BuildPollCreation(name string, options []string, maxSelections int) *waProto.Message
 
 	SendText(ctx context.Context, to types.JID, text string) (types.MessageID, error)
 	SendTextReply(ctx context.Context, to types.JID, text string, replyToID string, participantJID *types.JID, quoted *waProto.Message) (types.MessageID, error)
