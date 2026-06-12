@@ -8,9 +8,9 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/UAEpro/wacli-pro/internal/out"
 	"github.com/UAEpro/wacli-pro/internal/store"
+	"github.com/spf13/cobra"
 )
 
 func newChatsCmd(flags *rootFlags) *cobra.Command {
@@ -47,7 +47,9 @@ func newChatsCmd(flags *rootFlags) *cobra.Command {
 	}))
 	cmd.AddCommand(newChatStateCmd(flags, chatStateAction{
 		use: "mark-unread", short: "Mark a chat as unread",
-		run: func(ctx context.Context, a *appHandle, jid string) error { return a.app.MarkChatRead(ctx, a.jid, false) },
+		run: func(ctx context.Context, a *appHandle, jid string) error {
+			return a.app.MarkChatRead(ctx, a.jid, false)
+		},
 	}))
 	return cmd
 }

@@ -1,0 +1,11 @@
+services:
+  wacli-pro:
+    build: .
+    container_name: wacli-pro
+    restart: unless-stopped
+    command: sync --follow
+    volumes:
+      - wacli-data:/data
+
+volumes:
+  wacli-data:

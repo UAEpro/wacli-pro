@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/UAEpro/wacli-pro/internal/out"
 	"github.com/UAEpro/wacli-pro/internal/wa"
+	"github.com/spf13/cobra"
 	"go.mau.fi/whatsmeow/types"
 )
 

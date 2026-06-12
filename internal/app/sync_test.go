@@ -355,7 +355,7 @@ func TestSyncOnceMaxDuration(t *testing.T) {
 	_, err := a.Sync(context.Background(), SyncOptions{
 		Mode:        SyncModeOnce,
 		AllowQR:     false,
-		IdleExit:    10 * time.Second, // would take 10s to idle
+		IdleExit:    10 * time.Second,       // would take 10s to idle
 		MaxDuration: 500 * time.Millisecond, // but hard timeout at 500ms
 	})
 	if err != nil {

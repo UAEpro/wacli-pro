@@ -8,10 +8,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/spf13/cobra"
 	"github.com/UAEpro/wacli-pro/internal/config"
 	"github.com/UAEpro/wacli-pro/internal/lock"
 	"github.com/UAEpro/wacli-pro/internal/out"
+	"github.com/spf13/cobra"
 )
 
 func newDoctorCmd(flags *rootFlags) *cobra.Command {

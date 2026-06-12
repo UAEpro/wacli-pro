@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var version = "0.5.0"
+var version = "1.3.0"
 
 type rootFlags struct {
 	storeDir   string
@@ -29,14 +29,14 @@ func execute(args []string) error {
 	var flags rootFlags
 
 	rootCmd := &cobra.Command{
-		Use:           "wacli",
+		Use:           "wacli-pro",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version,
 	}
 	rootCmd.SetVersionTemplate("wacli-pro {{.Version}}\n")
 
-	rootCmd.PersistentFlags().StringVar(&flags.storeDir, "store", "", "store directory (default: ~/.wacli)")
+	rootCmd.PersistentFlags().StringVar(&flags.storeDir, "store", "", "store directory (default: ~/.wacli-pro)")
 	rootCmd.PersistentFlags().BoolVar(&flags.asJSON, "json", false, "output JSON instead of human-readable text")
 	rootCmd.PersistentFlags().BoolVar(&flags.fullOutput, "full", false, "disable truncation in table output")
 	rootCmd.PersistentFlags().BoolVar(&flags.asEvents, "events", false, "emit NDJSON lifecycle events to stderr (for scripting)")

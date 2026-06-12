@@ -3,8 +3,8 @@
 package lock
 
 import (
-	"os"
 	"golang.org/x/sys/windows"
+	"os"
 )
 
 func lockFile(f *os.File) error {

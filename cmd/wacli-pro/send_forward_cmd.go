@@ -6,10 +6,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/UAEpro/wacli-pro/internal/out"
 	"github.com/UAEpro/wacli-pro/internal/store"
 	"github.com/UAEpro/wacli-pro/internal/wa"
+	"github.com/spf13/cobra"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"google.golang.org/protobuf/proto"
 )
@@ -97,11 +97,11 @@ func newSendForwardCmd(flags *rootFlags) *cobra.Command {
 
 			if flags.asJSON {
 				return out.WriteJSON(os.Stdout, map[string]any{
-					"forwarded":  true,
-					"to":         toJID.String(),
-					"id":         resp,
-					"from_chat":  fromChat,
-					"from_id":    id,
+					"forwarded": true,
+					"to":        toJID.String(),
+					"id":        resp,
+					"from_chat": fromChat,
+					"from_id":   id,
 				})
 			}
 			fmt.Fprintf(os.Stdout, "Forwarded message to %s (id %s)\n", toJID.String(), resp)
