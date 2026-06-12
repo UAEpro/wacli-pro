@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/UAEpro/wacli-pro/internal/out"
+	"github.com/spf13/cobra"
 )
 
 func newStoreCmd(flags *rootFlags) *cobra.Command {

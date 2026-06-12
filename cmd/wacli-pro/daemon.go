@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/UAEpro/wacli-pro/internal/config"
 	"github.com/UAEpro/wacli-pro/internal/ipc"
 	"github.com/UAEpro/wacli-pro/internal/out"
+	"github.com/spf13/cobra"
 )
 
 func newDaemonCmd(flags *rootFlags) *cobra.Command {

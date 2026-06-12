@@ -1,0 +1,10 @@
+.git
+.github
+dist
+docs
+node_modules
+*.db
+*.db-shm
+*.db-wal
+.wacli
+.wacli-pro

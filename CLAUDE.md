@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-wacli is a Go CLI for WhatsApp built on the whatsmeow library. It syncs messages to a local SQLite database, provides offline full-text search (FTS5), and supports sending messages/files and managing contacts/groups.
+wacli-pro is a Go CLI for WhatsApp built on the whatsmeow library. It syncs messages to a local SQLite database, provides offline full-text search (FTS5), and supports sending messages/files and managing contacts/groups/channels.
 
 ## Build & Development Commands
 
 All commands use `pnpm` as the task runner:
 
 ```bash
-pnpm build              # Build binary to dist/wacli (requires CGO_ENABLED=1)
+pnpm build              # Build binary to dist/wacli-pro (requires CGO_ENABLED=1)
 pnpm test               # Run all tests (standard + FTS5 tagged)
 pnpm test:go            # Go tests without FTS5
 pnpm test:fts           # Go tests with -tags sqlite_fts5
@@ -27,7 +27,7 @@ The build requires CGO (for SQLite via mattn/go-sqlite3). The FTS5 build tag (`-
 ## Architecture
 
 ```
-cmd/wacli/          CLI entry point and cobra commands
+cmd/wacli-pro/      CLI entry point and cobra commands
 internal/
   app/              Core application logic (App struct coordinates everything)
   wa/               WhatsApp client wrapper around whatsmeow
@@ -47,7 +47,7 @@ internal/
 
 **Data flow:** CLI commands → `App` methods in `internal/app/` → `WAClient` (network) + `store.DB` (persistence).
 
-**Two SQLite databases** live in the store directory (default `~/.wacli`):
+**Two SQLite databases** live in the store directory (default `~/.wacli-pro`):
 - `session.db` — whatsmeow session/auth state
 - `wacli.db` — application data (messages, contacts, groups)
 
@@ -77,6 +77,12 @@ Tests use Go's standard `testing` package with table-driven tests. Database test
 
 ## Environment Variables
 
-- `WACLI_STORE_DIR` — override the store directory (default: `~/.wacli`). Equivalent to `--store`
-- `WACLI_DEVICE_LABEL` — custom device label shown in WhatsApp linked devices
-- `WACLI_DEVICE_PLATFORM` — device platform override (defaults to CHROME)
+- `WACLI_PRO_STORE_DIR` — override the store directory (default: `~/.wacli-pro`). Equivalent to `--store`
+- `WACLI_PRO_DEVICE_LABEL` — custom device label shown in WhatsApp linked devices
+- `WACLI_PRO_DEVICE_PLATFORM` — device platform override (defaults to CHROME)
+
+## Releases & Deployment
+
+- Releases: push a `vX.Y.Z` tag → `.github/workflows/release.yml` runs GoReleaser and attaches macOS/Linux/Windows archives to the GitHub release. Bump `version` in `cmd/wacli-pro/root.go` first. See `docs/release.md`.
+- `scripts/install.sh` — curl-able installer that downloads the right release asset.
+- `Dockerfile` + `docker-compose.yml` — server deployment of the sync daemon (state in the `wacli-data` volume, `WACLI_PRO_STORE_DIR=/data`).

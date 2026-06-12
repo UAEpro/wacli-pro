@@ -1,6 +1,6 @@
 # Command Reference
 
-Complete reference for every `wacli` command, subcommand, and flag.
+Complete reference for every `wacli-pro` command, subcommand, and flag.
 
 ---
 
@@ -33,7 +33,7 @@ These flags are available on all commands.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--store` | string | `~/.wacli` | Store directory |
+| `--store` | string | `~/.wacli-pro` | Store directory |
 | `--json` | bool | `false` | Output JSON instead of human-readable text |
 | `--full` | bool | `false` | Disable truncation in table output |
 | `--events` | bool | `false` | Emit NDJSON lifecycle events to stderr (for scripting) |
@@ -46,9 +46,9 @@ These flags are available on all commands.
 Authenticate with WhatsApp (shows QR code) and bootstrap sync.
 
 ```bash
-wacli auth
-wacli auth --follow          # keep syncing after auth
-wacli auth --download-media  # download media during initial sync
+wacli-pro auth
+wacli-pro auth --follow          # keep syncing after auth
+wacli-pro auth --download-media  # download media during initial sync
 ```
 
 | Flag | Type | Default | Description |
@@ -62,7 +62,7 @@ wacli auth --download-media  # download media during initial sync
 Check authentication status.
 
 ```bash
-wacli auth status
+wacli-pro auth status
 ```
 
 ### auth logout
@@ -70,7 +70,7 @@ wacli auth status
 Logout and invalidate the session.
 
 ```bash
-wacli auth logout
+wacli-pro auth logout
 ```
 
 ---
@@ -80,9 +80,9 @@ wacli auth logout
 Sync messages from WhatsApp. Requires prior authentication (never shows QR).
 
 ```bash
-wacli sync                # default: --follow (keep syncing)
-wacli sync --once         # sync until idle and exit
-wacli sync --once --events  # NDJSON event stream for scripting
+wacli-pro sync                # default: --follow (keep syncing)
+wacli-pro sync --once         # sync until idle and exit
+wacli-pro sync --once --events  # NDJSON event stream for scripting
 ```
 
 | Flag | Type | Default | Description |
@@ -106,9 +106,9 @@ List and search messages from the local database.
 List messages, optionally filtered by chat and time range.
 
 ```bash
-wacli messages list --chat 1234567890@s.whatsapp.net
-wacli messages list --chat 1234567890@s.whatsapp.net --after 2025-01-01 --limit 100
-wacli messages list --names  # show sender names instead of JIDs
+wacli-pro messages list --chat 1234567890@s.whatsapp.net
+wacli-pro messages list --chat 1234567890@s.whatsapp.net --after 2025-01-01 --limit 100
+wacli-pro messages list --names  # show sender names instead of JIDs
 ```
 
 | Flag | Type | Default | Description |
@@ -124,9 +124,9 @@ wacli messages list --names  # show sender names instead of JIDs
 Search messages using full-text search (FTS5 if available, falls back to LIKE).
 
 ```bash
-wacli messages search "meeting"
-wacli messages search "meeting" --chat 1234567890@s.whatsapp.net
-wacli messages search "report" --type document --after 2025-01-01
+wacli-pro messages search "meeting"
+wacli-pro messages search "meeting" --chat 1234567890@s.whatsapp.net
+wacli-pro messages search "report" --type document --after 2025-01-01
 ```
 
 | Flag | Type | Default | Description |
@@ -144,7 +144,7 @@ wacli messages search "report" --type document --after 2025-01-01
 Show a single message.
 
 ```bash
-wacli messages show --chat 1234567890@s.whatsapp.net --id <message-id>
+wacli-pro messages show --chat 1234567890@s.whatsapp.net --id <message-id>
 ```
 
 | Flag | Type | Default | Description |
@@ -158,8 +158,8 @@ wacli messages show --chat 1234567890@s.whatsapp.net --id <message-id>
 Show messages surrounding a specific message.
 
 ```bash
-wacli messages context --chat 1234567890@s.whatsapp.net --id <message-id>
-wacli messages context --chat 1234567890@s.whatsapp.net --id <message-id> --before 10 --after 10
+wacli-pro messages context --chat 1234567890@s.whatsapp.net --id <message-id>
+wacli-pro messages context --chat 1234567890@s.whatsapp.net --id <message-id> --before 10 --after 10
 ```
 
 | Flag | Type | Default | Description |
@@ -175,7 +175,7 @@ wacli messages context --chat 1234567890@s.whatsapp.net --id <message-id> --befo
 Edit a message you sent (within WhatsApp's edit window).
 
 ```bash
-wacli messages edit --chat 1234567890@s.whatsapp.net --id <message-id> --message "corrected text"
+wacli-pro messages edit --chat 1234567890@s.whatsapp.net --id <message-id> --message "corrected text"
 ```
 
 | Flag | Type | Default | Description |
@@ -189,7 +189,7 @@ wacli messages edit --chat 1234567890@s.whatsapp.net --id <message-id> --message
 Delete (revoke) a message for everyone.
 
 ```bash
-wacli messages delete --chat 1234567890@s.whatsapp.net --id <message-id>
+wacli-pro messages delete --chat 1234567890@s.whatsapp.net --id <message-id>
 ```
 
 | Flag | Type | Default | Description |
@@ -202,8 +202,8 @@ wacli messages delete --chat 1234567890@s.whatsapp.net --id <message-id>
 Export messages from a chat as JSON.
 
 ```bash
-wacli messages export --chat 1234567890@s.whatsapp.net
-wacli messages export --chat 1234567890@s.whatsapp.net --after 2025-01-01 --limit 1000
+wacli-pro messages export --chat 1234567890@s.whatsapp.net
+wacli-pro messages export --chat 1234567890@s.whatsapp.net --after 2025-01-01 --limit 1000
 ```
 
 | Flag | Type | Default | Description |
@@ -224,8 +224,8 @@ Send messages, files, reactions, locations, and more.
 Send a text message.
 
 ```bash
-wacli send text --to 1234567890 --message "hello"
-wacli send text --to 120363000000000000@g.us --reply-to <message-id> --message "replying"
+wacli-pro send text --to 1234567890 --message "hello"
+wacli-pro send text --to 120363000000000000@g.us --reply-to <message-id> --message "replying"
 ```
 
 | Flag | Type | Default | Description |
@@ -240,9 +240,9 @@ wacli send text --to 120363000000000000@g.us --reply-to <message-id> --message "
 Send a file. Auto-detects type (image/video/audio/document).
 
 ```bash
-wacli send file --to 1234567890 --file ./pic.jpg --caption "check this out"
-wacli send file --to 1234567890 --file /tmp/report --filename report.pdf
-wacli send file --to 1234567890 --file recording.ogg --ptt  # as voice note
+wacli-pro send file --to 1234567890 --file ./pic.jpg --caption "check this out"
+wacli-pro send file --to 1234567890 --file /tmp/report --filename report.pdf
+wacli-pro send file --to 1234567890 --file recording.ogg --ptt  # as voice note
 ```
 
 | Flag | Type | Default | Description |
@@ -259,7 +259,7 @@ wacli send file --to 1234567890 --file recording.ogg --ptt  # as voice note
 Send a sticker (must be WebP format).
 
 ```bash
-wacli send sticker --to 1234567890 --file ./sticker.webp
+wacli-pro send sticker --to 1234567890 --file ./sticker.webp
 ```
 
 | Flag | Type | Default | Description |
@@ -272,7 +272,7 @@ wacli send sticker --to 1234567890 --file ./sticker.webp
 Send a voice note (shortcut for `send file --ptt`).
 
 ```bash
-wacli send voice --to 1234567890 --file ./recording.ogg
+wacli-pro send voice --to 1234567890 --file ./recording.ogg
 ```
 
 | Flag | Type | Default | Description |
@@ -285,8 +285,8 @@ wacli send voice --to 1234567890 --file ./recording.ogg
 React to a message with an emoji. Send an empty emoji to remove the reaction.
 
 ```bash
-wacli send reaction --to 1234567890 --id <message-id> --emoji "👍"
-wacli send reaction --to 1234567890 --id <message-id> --emoji ""  # remove
+wacli-pro send reaction --to 1234567890 --id <message-id> --emoji "👍"
+wacli-pro send reaction --to 1234567890 --id <message-id> --emoji ""  # remove
 ```
 
 | Flag | Type | Default | Description |
@@ -300,7 +300,7 @@ wacli send reaction --to 1234567890 --id <message-id> --emoji ""  # remove
 Send a location message.
 
 ```bash
-wacli send location --to 1234567890 --lat 25.2 --lng 55.3 --name "Office"
+wacli-pro send location --to 1234567890 --lat 25.2 --lng 55.3 --name "Office"
 ```
 
 | Flag | Type | Default | Description |
@@ -316,7 +316,7 @@ wacli send location --to 1234567890 --lat 25.2 --lng 55.3 --name "Office"
 Forward a message to another chat.
 
 ```bash
-wacli send forward --to 1234567890 --from-chat <source-chat> --id <message-id>
+wacli-pro send forward --to 1234567890 --from-chat <source-chat> --id <message-id>
 ```
 
 | Flag | Type | Default | Description |
@@ -330,8 +330,8 @@ wacli send forward --to 1234567890 --from-chat <source-chat> --id <message-id>
 Send a poll with options.
 
 ```bash
-wacli send poll --to 120363000000000000@g.us --question "Lunch?" --option "Pizza" --option "Sushi" --option "Tacos"
-wacli send poll --to 1234567890 --question "Pick two" --option "A" --option "B" --option "C" --max-selections 2
+wacli-pro send poll --to 120363000000000000@g.us --question "Lunch?" --option "Pizza" --option "Sushi" --option "Tacos"
+wacli-pro send poll --to 1234567890 --question "Pick two" --option "A" --option "B" --option "C" --max-selections 2
 ```
 
 | Flag | Type | Default | Description |
@@ -352,9 +352,9 @@ List and manage chats.
 List chats with optional filters.
 
 ```bash
-wacli chats list
-wacli chats list --pinned
-wacli chats list --unread --no-archived
+wacli-pro chats list
+wacli-pro chats list --pinned
+wacli-pro chats list --unread --no-archived
 ```
 
 | Flag | Type | Default | Description |
@@ -375,7 +375,7 @@ wacli chats list --unread --no-archived
 Show details of a single chat.
 
 ```bash
-wacli chats show --jid 1234567890@s.whatsapp.net
+wacli-pro chats show --jid 1234567890@s.whatsapp.net
 ```
 
 | Flag | Type | Default | Description |
@@ -385,23 +385,23 @@ wacli chats show --jid 1234567890@s.whatsapp.net
 ### chats archive / unarchive
 
 ```bash
-wacli chats archive --jid 1234567890@s.whatsapp.net
-wacli chats unarchive --jid 1234567890@s.whatsapp.net
+wacli-pro chats archive --jid 1234567890@s.whatsapp.net
+wacli-pro chats unarchive --jid 1234567890@s.whatsapp.net
 ```
 
 ### chats pin / unpin
 
 ```bash
-wacli chats pin --jid 1234567890@s.whatsapp.net
-wacli chats unpin --jid 1234567890@s.whatsapp.net
+wacli-pro chats pin --jid 1234567890@s.whatsapp.net
+wacli-pro chats unpin --jid 1234567890@s.whatsapp.net
 ```
 
 ### chats mute / unmute
 
 ```bash
-wacli chats mute --jid 1234567890@s.whatsapp.net --duration 8h
-wacli chats mute --jid 1234567890@s.whatsapp.net  # mute forever
-wacli chats unmute --jid 1234567890@s.whatsapp.net
+wacli-pro chats mute --jid 1234567890@s.whatsapp.net --duration 8h
+wacli-pro chats mute --jid 1234567890@s.whatsapp.net  # mute forever
+wacli-pro chats unmute --jid 1234567890@s.whatsapp.net
 ```
 
 | Flag | Type | Default | Description |
@@ -412,8 +412,8 @@ wacli chats unmute --jid 1234567890@s.whatsapp.net
 ### chats mark-read / mark-unread
 
 ```bash
-wacli chats mark-read --jid 1234567890@s.whatsapp.net
-wacli chats mark-unread --jid 1234567890@s.whatsapp.net
+wacli-pro chats mark-read --jid 1234567890@s.whatsapp.net
+wacli-pro chats mark-unread --jid 1234567890@s.whatsapp.net
 ```
 
 ---
@@ -427,8 +427,8 @@ Search and manage local contact metadata.
 Search contacts from synced metadata.
 
 ```bash
-wacli contacts search "alice"
-wacli contacts search "work" --limit 100
+wacli-pro contacts search "alice"
+wacli-pro contacts search "work" --limit 100
 ```
 
 | Flag | Type | Default | Description |
@@ -440,7 +440,7 @@ wacli contacts search "work" --limit 100
 Show a single contact.
 
 ```bash
-wacli contacts show --jid 1234567890@s.whatsapp.net
+wacli-pro contacts show --jid 1234567890@s.whatsapp.net
 ```
 
 | Flag | Type | Default | Description |
@@ -452,7 +452,7 @@ wacli contacts show --jid 1234567890@s.whatsapp.net
 Import contacts from whatsmeow session store into local DB.
 
 ```bash
-wacli contacts refresh
+wacli-pro contacts refresh
 ```
 
 ### contacts alias set / rm
@@ -460,8 +460,8 @@ wacli contacts refresh
 Manage local aliases for contacts.
 
 ```bash
-wacli contacts alias set --jid 1234567890@s.whatsapp.net --alias "Alice"
-wacli contacts alias rm --jid 1234567890@s.whatsapp.net
+wacli-pro contacts alias set --jid 1234567890@s.whatsapp.net --alias "Alice"
+wacli-pro contacts alias rm --jid 1234567890@s.whatsapp.net
 ```
 
 | Flag | Type | Default | Description |
@@ -474,8 +474,8 @@ wacli contacts alias rm --jid 1234567890@s.whatsapp.net
 Manage local tags for contacts.
 
 ```bash
-wacli contacts tags add --jid 1234567890@s.whatsapp.net --tag "work"
-wacli contacts tags rm --jid 1234567890@s.whatsapp.net --tag "work"
+wacli-pro contacts tags add --jid 1234567890@s.whatsapp.net --tag "work"
+wacli-pro contacts tags rm --jid 1234567890@s.whatsapp.net --tag "work"
 ```
 
 | Flag | Type | Default | Description |
@@ -494,9 +494,9 @@ Group management and admin settings.
 List joined groups from local DB.
 
 ```bash
-wacli groups list
-wacli groups list --query "family"
-wacli groups list --all  # include groups you've left
+wacli-pro groups list
+wacli-pro groups list --query "family"
+wacli-pro groups list --all  # include groups you've left
 ```
 
 | Flag | Type | Default | Description |
@@ -510,7 +510,7 @@ wacli groups list --all  # include groups you've left
 Fetch joined groups live from WhatsApp and update local DB.
 
 ```bash
-wacli groups refresh
+wacli-pro groups refresh
 ```
 
 ### groups info
@@ -518,8 +518,8 @@ wacli groups refresh
 Fetch live group info from WhatsApp. Shows name, owner, participants, topic, locked/announce status, member add mode, and join approval.
 
 ```bash
-wacli groups info --jid 123456789@g.us
-wacli --json groups info --jid 123456789@g.us  # full JSON output
+wacli-pro groups info --jid 123456789@g.us
+wacli-pro --json groups info --jid 123456789@g.us  # full JSON output
 ```
 
 | Flag | Type | Default | Description |
@@ -531,7 +531,7 @@ wacli --json groups info --jid 123456789@g.us  # full JSON output
 Create a new group with participants.
 
 ```bash
-wacli groups create --name "Project Team" --user 1234567890 --user 9876543210
+wacli-pro groups create --name "Project Team" --user 1234567890 --user 9876543210
 ```
 
 | Flag | Type | Default | Description |
@@ -544,7 +544,7 @@ wacli groups create --name "Project Team" --user 1234567890 --user 9876543210
 Rename a group.
 
 ```bash
-wacli groups rename --jid 123456789@g.us --name "New Group Name"
+wacli-pro groups rename --jid 123456789@g.us --name "New Group Name"
 ```
 
 | Flag | Type | Default | Description |
@@ -557,8 +557,8 @@ wacli groups rename --jid 123456789@g.us --name "New Group Name"
 Set or clear the group description/topic.
 
 ```bash
-wacli groups topic --jid 123456789@g.us --topic "Welcome to the group!"
-wacli groups topic --jid 123456789@g.us --topic ""  # clear description
+wacli-pro groups topic --jid 123456789@g.us --topic "Welcome to the group!"
+wacli-pro groups topic --jid 123456789@g.us --topic ""  # clear description
 ```
 
 | Flag | Type | Default | Description |
@@ -571,8 +571,8 @@ wacli groups topic --jid 123456789@g.us --topic ""  # clear description
 Set or remove the group photo.
 
 ```bash
-wacli groups photo --jid 123456789@g.us --file photo.jpg
-wacli groups photo --jid 123456789@g.us --remove
+wacli-pro groups photo --jid 123456789@g.us --file photo.jpg
+wacli-pro groups photo --jid 123456789@g.us --remove
 ```
 
 | Flag | Type | Default | Description |
@@ -586,8 +586,8 @@ wacli groups photo --jid 123456789@g.us --remove
 Lock or unlock group settings. When locked, only admins can edit group info (name, description, photo).
 
 ```bash
-wacli groups lock --jid 123456789@g.us    # admin-only editing
-wacli groups unlock --jid 123456789@g.us  # all participants can edit
+wacli-pro groups lock --jid 123456789@g.us    # admin-only editing
+wacli-pro groups unlock --jid 123456789@g.us  # all participants can edit
 ```
 
 | Flag | Type | Default | Description |
@@ -599,8 +599,8 @@ wacli groups unlock --jid 123456789@g.us  # all participants can edit
 Enable or disable announce mode. When enabled, only admins can send messages.
 
 ```bash
-wacli groups announce --jid 123456789@g.us    # admin-only messages
-wacli groups unannounce --jid 123456789@g.us  # everyone can message
+wacli-pro groups announce --jid 123456789@g.us    # admin-only messages
+wacli-pro groups unannounce --jid 123456789@g.us  # everyone can message
 ```
 
 | Flag | Type | Default | Description |
@@ -612,8 +612,8 @@ wacli groups unannounce --jid 123456789@g.us  # everyone can message
 Toggle join approval mode. When enabled, new members require admin approval.
 
 ```bash
-wacli groups join-approval --jid 123456789@g.us --on
-wacli groups join-approval --jid 123456789@g.us --off
+wacli-pro groups join-approval --jid 123456789@g.us --on
+wacli-pro groups join-approval --jid 123456789@g.us --off
 ```
 
 | Flag | Type | Default | Description |
@@ -627,8 +627,8 @@ wacli groups join-approval --jid 123456789@g.us --off
 Set who can add new members to the group.
 
 ```bash
-wacli groups member-add-mode --jid 123456789@g.us --mode admin  # admins only
-wacli groups member-add-mode --jid 123456789@g.us --mode all    # all members
+wacli-pro groups member-add-mode --jid 123456789@g.us --mode admin  # admins only
+wacli-pro groups member-add-mode --jid 123456789@g.us --mode all    # all members
 ```
 
 | Flag | Type | Default | Description |
@@ -641,10 +641,10 @@ wacli groups member-add-mode --jid 123456789@g.us --mode all    # all members
 Manage group participants. The `--user` flag can be repeated to act on multiple users.
 
 ```bash
-wacli groups participants add --jid 123456789@g.us --user 1234567890 --user 9876543210
-wacli groups participants remove --jid 123456789@g.us --user 1234567890
-wacli groups participants promote --jid 123456789@g.us --user 1234567890  # make admin
-wacli groups participants demote --jid 123456789@g.us --user 1234567890   # remove admin
+wacli-pro groups participants add --jid 123456789@g.us --user 1234567890 --user 9876543210
+wacli-pro groups participants remove --jid 123456789@g.us --user 1234567890
+wacli-pro groups participants promote --jid 123456789@g.us --user 1234567890  # make admin
+wacli-pro groups participants demote --jid 123456789@g.us --user 1234567890   # remove admin
 ```
 
 | Flag | Type | Default | Description |
@@ -657,8 +657,8 @@ wacli groups participants demote --jid 123456789@g.us --user 1234567890   # remo
 Manage group invite links.
 
 ```bash
-wacli groups invite link get --jid 123456789@g.us
-wacli groups invite link revoke --jid 123456789@g.us  # revoke and generate new link
+wacli-pro groups invite link get --jid 123456789@g.us
+wacli-pro groups invite link revoke --jid 123456789@g.us  # revoke and generate new link
 ```
 
 | Flag | Type | Default | Description |
@@ -670,7 +670,7 @@ wacli groups invite link revoke --jid 123456789@g.us  # revoke and generate new 
 Join a group by invite code.
 
 ```bash
-wacli groups join --code <invite-code>
+wacli-pro groups join --code <invite-code>
 ```
 
 | Flag | Type | Default | Description |
@@ -682,9 +682,9 @@ wacli groups join --code <invite-code>
 Manage pending join requests (when join approval is enabled).
 
 ```bash
-wacli groups requests list --jid 123456789@g.us
-wacli groups requests approve --jid 123456789@g.us --user 1234567890
-wacli groups requests reject --jid 123456789@g.us --user 1234567890 --user 9876543210
+wacli-pro groups requests list --jid 123456789@g.us
+wacli-pro groups requests approve --jid 123456789@g.us --user 1234567890
+wacli-pro groups requests reject --jid 123456789@g.us --user 1234567890 --user 9876543210
 ```
 
 | Flag | Type | Default | Description |
@@ -697,7 +697,7 @@ wacli groups requests reject --jid 123456789@g.us --user 1234567890 --user 98765
 Leave a group.
 
 ```bash
-wacli groups leave --jid 123456789@g.us
+wacli-pro groups leave --jid 123456789@g.us
 ```
 
 | Flag | Type | Default | Description |
@@ -715,7 +715,7 @@ Manage WhatsApp channels (newsletters).
 List channels you're subscribed to.
 
 ```bash
-wacli channels list
+wacli-pro channels list
 ```
 
 ### channels info
@@ -723,8 +723,8 @@ wacli channels list
 Get info about a channel.
 
 ```bash
-wacli channels info --jid 123456789@newsletter
-wacli channels info --invite "https://whatsapp.com/channel/..."
+wacli-pro channels info --jid 123456789@newsletter
+wacli-pro channels info --invite "https://whatsapp.com/channel/..."
 ```
 
 | Flag | Type | Default | Description |
@@ -737,8 +737,8 @@ wacli channels info --invite "https://whatsapp.com/channel/..."
 Follow (join) or unfollow (leave) a channel.
 
 ```bash
-wacli channels follow --jid 123456789@newsletter
-wacli channels unfollow --jid 123456789@newsletter
+wacli-pro channels follow --jid 123456789@newsletter
+wacli-pro channels unfollow --jid 123456789@newsletter
 ```
 
 | Flag | Type | Default | Description |
@@ -750,8 +750,8 @@ wacli channels unfollow --jid 123456789@newsletter
 Mute or unmute a channel.
 
 ```bash
-wacli channels mute --jid 123456789@newsletter
-wacli channels unmute --jid 123456789@newsletter
+wacli-pro channels mute --jid 123456789@newsletter
+wacli-pro channels unmute --jid 123456789@newsletter
 ```
 
 | Flag | Type | Default | Description |
@@ -769,8 +769,8 @@ Manage your WhatsApp profile.
 Set your "About" text.
 
 ```bash
-wacli profile set-about --text "Available"
-wacli profile set-about --text ""  # clear
+wacli-pro profile set-about --text "Available"
+wacli-pro profile set-about --text ""  # clear
 ```
 
 | Flag | Type | Default | Description |
@@ -782,7 +782,7 @@ wacli profile set-about --text ""  # clear
 Set your profile photo (JPEG).
 
 ```bash
-wacli profile set-photo --file photo.jpg
+wacli-pro profile set-photo --file photo.jpg
 ```
 
 | Flag | Type | Default | Description |
@@ -794,7 +794,7 @@ wacli profile set-photo --file photo.jpg
 Remove your profile photo.
 
 ```bash
-wacli profile remove-photo
+wacli-pro profile remove-photo
 ```
 
 ---
@@ -808,7 +808,7 @@ Local store management.
 Show database statistics.
 
 ```bash
-wacli store stats
+wacli-pro store stats
 ```
 
 Output: store directory, DB file size, message count, chat count, contact count, group count.
@@ -822,8 +822,8 @@ Output: store directory, DB file size, message count, chat count, contact count,
 Download media for a message.
 
 ```bash
-wacli media download --chat 1234567890@s.whatsapp.net --id <message-id>
-wacli media download --chat 1234567890@s.whatsapp.net --id <message-id> --output ./downloads/
+wacli-pro media download --chat 1234567890@s.whatsapp.net --id <message-id>
+wacli-pro media download --chat 1234567890@s.whatsapp.net --id <message-id> --output ./downloads/
 ```
 
 | Flag | Type | Default | Description |
@@ -843,8 +843,8 @@ Request older messages for a chat from your primary device (on-demand history sy
 Your primary device (phone) must be online. This is best-effort and WhatsApp may not return full history.
 
 ```bash
-wacli history backfill --chat 1234567890@s.whatsapp.net
-wacli history backfill --chat 1234567890@s.whatsapp.net --requests 10 --count 50
+wacli-pro history backfill --chat 1234567890@s.whatsapp.net
+wacli-pro history backfill --chat 1234567890@s.whatsapp.net --requests 10 --count 50
 ```
 
 | Flag | Type | Default | Description |
@@ -858,10 +858,10 @@ wacli history backfill --chat 1234567890@s.whatsapp.net --requests 10 --count 50
 **Backfill all chats (script):**
 
 ```bash
-wacli --json chats list --limit 100000 \
+wacli-pro --json chats list --limit 100000 \
   | jq -r '.[].JID' \
   | while read -r jid; do
-      wacli history backfill --chat "$jid" --requests 3 --count 50
+      wacli-pro history backfill --chat "$jid" --requests 3 --count 50
     done
 ```
 
@@ -876,8 +876,8 @@ Send typing and recording indicators to a chat.
 Send a "composing" (typing) indicator.
 
 ```bash
-wacli presence typing --to 1234567890
-wacli presence typing --to 1234567890 --media audio  # recording indicator
+wacli-pro presence typing --to 1234567890
+wacli-pro presence typing --to 1234567890 --media audio  # recording indicator
 ```
 
 | Flag | Type | Default | Description |
@@ -890,7 +890,7 @@ wacli presence typing --to 1234567890 --media audio  # recording indicator
 Send a "paused" indicator (stop typing).
 
 ```bash
-wacli presence paused --to 1234567890
+wacli-pro presence paused --to 1234567890
 ```
 
 | Flag | Type | Default | Description |
@@ -908,7 +908,7 @@ Post to WhatsApp Status (stories).
 Post a text status update.
 
 ```bash
-wacli status text --text "Hello world"
+wacli-pro status text --text "Hello world"
 ```
 
 | Flag | Type | Default | Description |
@@ -920,8 +920,8 @@ wacli status text --text "Hello world"
 Post an image or video as a status update.
 
 ```bash
-wacli status file --file photo.jpg
-wacli status file --file video.mp4 --caption "Check this out"
+wacli-pro status file --file photo.jpg
+wacli-pro status file --file video.mp4 --caption "Check this out"
 ```
 
 | Flag | Type | Default | Description |
@@ -942,8 +942,8 @@ Manage the background sync daemon.
 Start the background sync daemon.
 
 ```bash
-wacli daemon start
-wacli daemon start --download-media --refresh-contacts --refresh-groups
+wacli-pro daemon start
+wacli-pro daemon start --download-media --refresh-contacts --refresh-groups
 ```
 
 | Flag | Type | Default | Description |
@@ -957,7 +957,7 @@ wacli daemon start --download-media --refresh-contacts --refresh-groups
 Stop the background sync daemon.
 
 ```bash
-wacli daemon stop
+wacli-pro daemon stop
 ```
 
 ### daemon status
@@ -965,7 +965,7 @@ wacli daemon stop
 Check whether the daemon is running.
 
 ```bash
-wacli daemon status
+wacli-pro daemon status
 ```
 
 ### daemon logs
@@ -973,9 +973,9 @@ wacli daemon status
 Show daemon log output.
 
 ```bash
-wacli daemon logs
-wacli daemon logs -f       # follow (like tail -f)
-wacli daemon logs -n 100   # last 100 lines
+wacli-pro daemon logs
+wacli-pro daemon logs -f       # follow (like tail -f)
+wacli-pro daemon logs -n 100   # last 100 lines
 ```
 
 | Flag | Short | Type | Default | Description |
@@ -990,8 +990,8 @@ wacli daemon logs -n 100   # last 100 lines
 Diagnostics for store, auth, and search status.
 
 ```bash
-wacli doctor
-wacli doctor --connect  # also test WhatsApp connection
+wacli-pro doctor
+wacli-pro doctor --connect  # also test WhatsApp connection
 ```
 
 | Flag | Type | Default | Description |
@@ -1009,10 +1009,10 @@ Output includes:
 
 ## version
 
-Print the wacli version.
+Print the wacli-pro version.
 
 ```bash
-wacli version
+wacli-pro version
 ```
 
 ---
@@ -1021,9 +1021,9 @@ wacli version
 
 | Variable | Description |
 |----------|-------------|
-| `WACLI_STORE_DIR` | Override the store directory (default: `~/.wacli`). Equivalent to `--store` |
-| `WACLI_DEVICE_LABEL` | Custom device label shown in WhatsApp linked devices |
-| `WACLI_DEVICE_PLATFORM` | Device platform override (defaults to `CHROME`) |
+| `WACLI_PRO_STORE_DIR` | Override the store directory (default: `~/.wacli-pro`). Equivalent to `--store` |
+| `WACLI_PRO_DEVICE_LABEL` | Custom device label shown in WhatsApp linked devices |
+| `WACLI_PRO_DEVICE_PLATFORM` | Device platform override (defaults to `CHROME`) |
 
 ---
 

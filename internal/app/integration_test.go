@@ -52,9 +52,9 @@ func TestIntegrationFullLifecycle(t *testing.T) {
 	groupJID := types.JID{User: "group1", Server: types.GroupServer}
 	fw.groups[groupJID] = &types.GroupInfo{
 		JID:          groupJID,
-		GroupName:     types.GroupName{Name: "Test Group"},
-		GroupCreated:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		Participants:  []types.GroupParticipant{{JID: contactJID}},
+		GroupName:    types.GroupName{Name: "Test Group"},
+		GroupCreated: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		Participants: []types.GroupParticipant{{JID: contactJID}},
 	}
 
 	// Schedule events to be emitted on connect.
@@ -78,9 +78,9 @@ func TestIntegrationFullLifecycle(t *testing.T) {
 				ID:        "msg2",
 				Timestamp: time.Now().Add(-3 * time.Minute),
 				MessageSource: types.MessageSource{
-					Chat:     groupJID,
-					Sender:   contactJID,
-					IsGroup:  true,
+					Chat:    groupJID,
+					Sender:  contactJID,
+					IsGroup: true,
 				},
 				PushName: "Alice",
 			},
@@ -180,9 +180,9 @@ func TestIntegrationRefreshContactsAndGroups(t *testing.T) {
 	gid := types.JID{User: "g1", Server: types.GroupServer}
 	fw.groups[gid] = &types.GroupInfo{
 		JID:          gid,
-		GroupName:     types.GroupName{Name: "Dev"},
-		GroupCreated:  time.Now(),
-		Participants:  []types.GroupParticipant{{JID: jid1}},
+		GroupName:    types.GroupName{Name: "Dev"},
+		GroupCreated: time.Now(),
+		Participants: []types.GroupParticipant{{JID: jid1}},
 	}
 
 	ctx := context.Background()

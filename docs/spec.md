@@ -1,12 +1,12 @@
-# wacli specification (plan)
+# wacli-pro specification (plan)
 
-This document defines the v1 plan for `wacli`: a WhatsApp CLI that syncs messages locally, supports fast search, sending, and contact/group management. Implementation will use `whatsmeow` under the hood.
+This document defines the v1 plan for `wacli-pro`: a WhatsApp CLI that syncs messages locally, supports fast search, sending, and contact/group management. Implementation will use `whatsmeow` under the hood.
 
 ## Goals
 
-- **Explicit authentication step**: `wacli auth` shows a QR code and completes login.
-- **Auth starts syncing immediately**: after successful QR pairing, `wacli auth` begins initial sync (history + metadata).
-- **Non-interactive sync**: `wacli sync` never displays a QR code; it fails with a clear error if not authenticated.
+- **Explicit authentication step**: `wacli-pro auth` shows a QR code and completes login.
+- **Auth starts syncing immediately**: after successful QR pairing, `wacli-pro auth` begins initial sync (history + metadata).
+- **Non-interactive sync**: `wacli-pro sync` never displays a QR code; it fails with a clear error if not authenticated.
 - **Fast offline message search**: local SQLite + FTS5 index.
 - **Human-first output**: readable tables by default, `--json` opt-in for scripting.
 - **Single-instance safety**: store locking to avoid multi-instance session conflicts (device/session replacement issues).
@@ -21,20 +21,20 @@ This document defines the v1 plan for `wacli`: a WhatsApp CLI that syncs message
 ## Terminology
 
 - **JID**: WhatsApp Jabber ID, e.g. `1234567890@s.whatsapp.net` (user) or `123456789@g.us` (group).
-- **Store directory**: directory containing all local state, default `~/.wacli`.
+- **Store directory**: directory containing all local state, default `~/.wacli-pro`.
 
 ## Storage layout
 
-Default store: `~/.wacli` (override with `--store DIR`).
+Default store: `~/.wacli-pro` (override with `--store DIR`).
 
 Proposed files:
 
-- `~/.wacli/session.db` — `whatsmeow` SQL store (device identity, keys, app-state).
-- `~/.wacli/wacli.db` — our SQLite DB (messages/chats, FTS, local metadata).
-- `~/.wacli/media/...` — downloaded media (optional, on-demand or background).
-- `~/.wacli/LOCK` — store lock to prevent concurrent access.
+- `~/.wacli-pro/session.db` — `whatsmeow` SQL store (device identity, keys, app-state).
+- `~/.wacli-pro/wacli.db` — our SQLite DB (messages/chats, FTS, local metadata).
+- `~/.wacli-pro/media/...` — downloaded media (optional, on-demand or background).
+- `~/.wacli-pro/LOCK` — store lock to prevent concurrent access.
 
-Rationale for two SQLite files: reduce coupling and keep the `whatsmeow`-owned schema separate from `wacli`’s local schema. It’s still “one store directory” for the user.
+Rationale for two SQLite files: reduce coupling and keep the `whatsmeow`-owned schema separate from `wacli-pro`’s local schema. It’s still “one store directory” for the user.
 
 ## Concurrency + locking
 
@@ -43,30 +43,30 @@ Every command that accesses the WhatsApp session must acquire an exclusive lock 
 Behavior:
 
 - If lock is held: fail fast with a clear message (include PID and start time if available).
-- This prevents running multiple `wacli` instances against the same WhatsApp device identity, which can cause disconnects or “device replaced” style failures.
+- This prevents running multiple `wacli-pro` instances against the same WhatsApp device identity, which can cause disconnects or “device replaced” style failures.
 
 ## Authentication model
 
 ### Commands
 
-- `wacli auth` (interactive)
+- `wacli-pro auth` (interactive)
   - If not authenticated: connect, show QR code, wait for success.
   - After success: start initial sync (bootstrap) immediately.
   - Exits after initial sync “goes idle” (configurable), unless `--follow` is set.
 
-- `wacli sync` (non-interactive)
+- `wacli-pro sync` (non-interactive)
   - Requires an existing authenticated session in `session.db`.
-  - Never displays QR; if not authenticated, prints “run `wacli auth`”.
+  - Never displays QR; if not authenticated, prints “run `wacli-pro auth`”.
   - `--once` performs a bounded sync and exits.
   - Default (or `--follow`) stays connected and continues capturing messages.
 
 ### UX principle
 
-Only `wacli auth` is expected to show a QR code. `wacli sync` should be safe to run in scripts/daemons without surprising interactivity.
+Only `wacli-pro auth` is expected to show a QR code. `wacli-pro sync` should be safe to run in scripts/daemons without surprising interactivity.
 
 ## Sync model (best-effort)
 
-`wacli` captures messages via `whatsmeow` event handlers:
+`wacli-pro` captures messages via `whatsmeow` event handlers:
 
 - `events.HistorySync`: initial/batch history sync delivered by WhatsApp Web.
 - `events.Message`: new incoming/outgoing messages while connected.
@@ -74,7 +74,7 @@ Only `wacli auth` is expected to show a QR code. `wacli sync` should be safe to 
 
 ### Bootstrap sync (after auth)
 
-Immediately after QR pairing success, `wacli auth` runs a bootstrap sync:
+Immediately after QR pairing success, `wacli-pro auth` runs a bootstrap sync:
 
 - Processes history sync events and stores message metadata.
 - Updates chats, names, and contact-derived names as available.
@@ -83,7 +83,7 @@ Immediately after QR pairing success, `wacli auth` runs a bootstrap sync:
 
 ### Continuous sync
 
-`wacli sync --follow` keeps running:
+`wacli-pro sync --follow` keeps running:
 
 - persists new messages as they arrive
 - performs safe reconnect with backoff on disconnect
@@ -132,24 +132,24 @@ Fallback:
 
 Global flags:
 
-- `--store DIR` (default `~/.wacli`)
+- `--store DIR` (default `~/.wacli-pro`)
 - `--json` (default: human text)
 - `--timeout DURATION` (non-sync commands; e.g. `5m`)
 - `--version` (prints version and exits)
 
 ### Doctor
 
-- `wacli doctor [--connect]`
+- `wacli-pro doctor [--connect]`
 
 ### Auth
 
-- `wacli auth [--follow] [--idle-exit 30s]`
-- `wacli auth status`
-- `wacli auth logout`
+- `wacli-pro auth [--follow] [--idle-exit 30s]`
+- `wacli-pro auth status`
+- `wacli-pro auth logout`
 
 ### Sync
 
-- `wacli sync [--once] [--follow] [--download-media]`
+- `wacli-pro sync [--once] [--follow] [--download-media]`
 
 Notes:
 
@@ -158,55 +158,55 @@ Notes:
 
 ### History backfill (best-effort)
 
-WhatsApp Web history is best-effort. If you want to try fetching *older* messages for a specific chat, `wacli` can send an on-demand history request to your primary device:
+WhatsApp Web history is best-effort. If you want to try fetching *older* messages for a specific chat, `wacli-pro` can send an on-demand history request to your primary device:
 
-- `wacli history backfill --chat JID [--count 50] [--requests N]`
+- `wacli-pro history backfill --chat JID [--count 50] [--requests N]`
 
 ### Messages
 
-- `wacli messages list [--chat JID] [--limit N] [--before TS] [--after TS]`
-- `wacli messages search <query> [--chat JID] [--from JID] [--limit N] [--before TS] [--after TS] [--type text|image|video|audio|document]`
-- `wacli messages show --chat JID --id MSG_ID`
-- `wacli messages context --chat JID --id MSG_ID [--before N] [--after N]`
+- `wacli-pro messages list [--chat JID] [--limit N] [--before TS] [--after TS]`
+- `wacli-pro messages search <query> [--chat JID] [--from JID] [--limit N] [--before TS] [--after TS] [--type text|image|video|audio|document]`
+- `wacli-pro messages show --chat JID --id MSG_ID`
+- `wacli-pro messages context --chat JID --id MSG_ID [--before N] [--after N]`
 
 ### Send
 
-- `wacli send text --to PHONE_OR_JID --message TEXT`
-- `wacli send file --to PHONE_OR_JID --file PATH [--caption TEXT] [--mime TYPE]`
+- `wacli-pro send text --to PHONE_OR_JID --message TEXT`
+- `wacli-pro send file --to PHONE_OR_JID --file PATH [--caption TEXT] [--mime TYPE]`
 
 ### Contacts (read + local management)
 
-- `wacli contacts search <query>`
-- `wacli contacts show --jid JID`
-- `wacli contacts refresh`
-- `wacli contacts alias set --jid JID --alias "Name"`
-- `wacli contacts alias rm --jid JID`
-- `wacli contacts tags add|rm --jid JID --tag TAG`
+- `wacli-pro contacts search <query>`
+- `wacli-pro contacts show --jid JID`
+- `wacli-pro contacts refresh`
+- `wacli-pro contacts alias set --jid JID --alias "Name"`
+- `wacli-pro contacts alias rm --jid JID`
+- `wacli-pro contacts tags add|rm --jid JID --tag TAG`
 
 ### Chats
 
-- `wacli chats list [--query TEXT] [--limit N] [--archived] [--no-archived] [--pinned] [--no-pinned] [--muted] [--no-muted] [--unread] [--no-unread]`
-- `wacli chats show --jid JID`
-- `wacli chats archive --jid JID`
-- `wacli chats unarchive --jid JID`
-- `wacli chats pin --jid JID`
-- `wacli chats unpin --jid JID`
-- `wacli chats mute --jid JID [--duration DURATION]`
-- `wacli chats unmute --jid JID`
-- `wacli chats mark-read --jid JID`
-- `wacli chats mark-unread --jid JID`
+- `wacli-pro chats list [--query TEXT] [--limit N] [--archived] [--no-archived] [--pinned] [--no-pinned] [--muted] [--no-muted] [--unread] [--no-unread]`
+- `wacli-pro chats show --jid JID`
+- `wacli-pro chats archive --jid JID`
+- `wacli-pro chats unarchive --jid JID`
+- `wacli-pro chats pin --jid JID`
+- `wacli-pro chats unpin --jid JID`
+- `wacli-pro chats mute --jid JID [--duration DURATION]`
+- `wacli-pro chats unmute --jid JID`
+- `wacli-pro chats mark-read --jid JID`
+- `wacli-pro chats mark-unread --jid JID`
 
 ### Groups
 
-- `wacli groups list [--query TEXT]`
-- `wacli groups refresh`
-- `wacli groups info --jid GROUP_JID`
-- `wacli groups rename --jid GROUP_JID --name "New Name"`
-- `wacli groups participants add|remove --jid GROUP_JID --user PHONE_OR_JID [--user ...]`
-- `wacli groups participants promote|demote --jid GROUP_JID --user PHONE_OR_JID [--user ...]`
-- `wacli groups invite link get|revoke --jid GROUP_JID`
-- `wacli groups join --code INVITE_CODE`
-- `wacli groups leave --jid GROUP_JID`
+- `wacli-pro groups list [--query TEXT]`
+- `wacli-pro groups refresh`
+- `wacli-pro groups info --jid GROUP_JID`
+- `wacli-pro groups rename --jid GROUP_JID --name "New Name"`
+- `wacli-pro groups participants add|remove --jid GROUP_JID --user PHONE_OR_JID [--user ...]`
+- `wacli-pro groups participants promote|demote --jid GROUP_JID --user PHONE_OR_JID [--user ...]`
+- `wacli-pro groups invite link get|revoke --jid GROUP_JID`
+- `wacli-pro groups join --code INVITE_CODE`
+- `wacli-pro groups leave --jid GROUP_JID`
 
 ## Output formats
 
@@ -242,7 +242,7 @@ Recommendation:
 - `sync` (non-interactive, follow mode)
 - `messages list/search` with FTS5
 - `send text`
-- store locking, default `~/.wacli`
+- store locking, default `~/.wacli-pro`
 
 ### v0.2
 
