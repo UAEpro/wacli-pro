@@ -21,7 +21,7 @@ Complete reference for every `wacli-pro` command, subcommand, and flag.
 - [history](#history) - Backfill older messages
 - [presence](#presence) - Typing indicators
 - [status](#status) - Post to WhatsApp Status (stories)
-- [daemon](#daemon) - Background sync daemon
+- [daemon](#daemon) - Background sync as a native OS service
 - [doctor](#doctor) - Diagnostics
 - [version](#version) - Print version
 
@@ -935,11 +935,22 @@ wacli-pro status file --file video.mp4 --caption "Check this out"
 
 ## daemon
 
-Manage the background sync daemon.
+Run background sync as a **native OS service** that auto-starts on boot and
+restarts on crash. `daemon start` registers wacli with the platform service
+manager:
+
+- **Linux / WSL** — a systemd *user* service (no root required; starts on boot
+  when user lingering is enabled: `loginctl enable-linger $USER`).
+- **macOS** — a launchd LaunchAgent.
+- **Windows** — a Windows service (run from an elevated/admin prompt).
+
+The service runs `sync --follow` against the configured store and keeps an IPC
+socket open so other commands (e.g. `send`) delegate to the live connection.
 
 ### daemon start
 
-Start the background sync daemon.
+Install (or refresh) the service and start it. Safe to re-run — it reinstalls
+the unit so it always matches the current binary path and options.
 
 ```bash
 wacli-pro daemon start
@@ -949,23 +960,40 @@ wacli-pro daemon start --download-media --refresh-contacts --refresh-groups
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--download-media` | bool | `false` | Download media during sync |
-| `--refresh-contacts` | bool | `false` | Refresh contacts on start |
-| `--refresh-groups` | bool | `false` | Refresh groups on start |
+| `--refresh-contacts` | bool | `false` | Refresh contacts on each start |
+| `--refresh-groups` | bool | `false` | Refresh groups on each start |
 
 ### daemon stop
 
-Stop the background sync daemon.
+Stop the service. It stays installed and will start again on next boot — use
+`daemon uninstall` to remove it entirely.
 
 ```bash
 wacli-pro daemon stop
 ```
 
+### daemon restart
+
+Restart the service.
+
+```bash
+wacli-pro daemon restart
+```
+
 ### daemon status
 
-Check whether the daemon is running.
+Show whether the service is installed and running, plus its store and log path.
 
 ```bash
 wacli-pro daemon status
+```
+
+### daemon uninstall
+
+Stop the service and remove it from the OS (it will no longer start on boot).
+
+```bash
+wacli-pro daemon uninstall
 ```
 
 ### daemon logs

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Daemon: `daemon start` now installs wacli as a **native OS service** (systemd
+  user service on Linux/WSL, launchd on macOS, Windows Service Manager) instead
+  of a detached PID-file process. The service auto-starts on boot and restarts
+  on crash. `daemon start` is idempotent and reinstalls the unit to match the
+  current binary.
+
+### Added
+
+- Daemon: `daemon restart` and `daemon uninstall` commands.
+
 ## 1.1.0 - 2026-06-07
 
 ### Added
