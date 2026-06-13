@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"text/tabwriter"
-	"time"
 
+	"github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/UAEpro/wacli-pro/internal/out"
 	"github.com/spf13/cobra"
 )
@@ -16,38 +16,17 @@ func newGroupsRefreshCmd(flags *rootFlags) *cobra.Command {
 		Use:   "refresh",
 		Short: "Fetch joined groups (live) and update local DB",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.refresh", map[string]any{},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupRefresh(ctx, a)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gs, err := a.WA().GetJoinedGroups(ctx)
-			if err != nil {
-				return err
-			}
-			for _, g := range gs {
-				if g == nil {
-					continue
-				}
-				warnOnErr(persistGroupInfo(a.DB(), g), "persist group info")
-				warnOnErr(a.DB().UpsertChat(g.JID.String(), "group", g.GroupName.Name, time.Now()), "persist chat")
-			}
-
 			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"groups": len(gs)})
+				return out.WriteJSON(os.Stdout, data)
 			}
-			fmt.Fprintf(os.Stdout, "Imported %d groups.\n", len(gs))
+			fmt.Fprintf(os.Stdout, "Imported %v groups.\n", data["groups"])
 			return nil
 		},
 	}

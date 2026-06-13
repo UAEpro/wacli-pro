@@ -3,12 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/UAEpro/wacli-pro/internal/out"
+	"github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/spf13/cobra"
-	"go.mau.fi/whatsmeow/types"
 )
 
 func newGroupsTopicCmd(flags *rootFlags) *cobra.Command {
@@ -24,37 +22,14 @@ func newGroupsTopicCmd(flags *rootFlags) *cobra.Command {
 			if !cmd.Flags().Changed("topic") {
 				return fmt.Errorf("--topic is required (use empty string to clear)")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.topic", map[string]any{"jid": jidStr, "topic": topic},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupTopic(ctx, a, jidStr, topic)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().SetGroupTopic(ctx, gjid, topic); err != nil {
-				return err
-			}
-			if info, err := a.WA().GetGroupInfo(ctx, gjid); err == nil && info != nil {
-				warnOnErr(persistGroupInfo(a.DB(), info), "persist group info")
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "topic": topic})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "group JID (…@g.us)")
@@ -76,44 +51,14 @@ func newGroupsPhotoCmd(flags *rootFlags) *cobra.Command {
 			if !remove && strings.TrimSpace(filePath) == "" {
 				return fmt.Errorf("--file is required (or use --remove to remove photo)")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.photo", map[string]any{"jid": jidStr, "file": filePath, "remove": remove},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupPhoto(ctx, a, jidStr, filePath, remove)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-
-			var avatar []byte
-			if !remove {
-				avatar, err = os.ReadFile(filePath)
-				if err != nil {
-					return fmt.Errorf("read photo file: %w", err)
-				}
-			}
-
-			pictureID, err := a.WA().SetGroupPhoto(ctx, gjid, avatar)
-			if err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "picture_id": pictureID})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "group JID (…@g.us)")
@@ -131,34 +76,14 @@ func newGroupsLockCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.lock", map[string]any{"jid": jidStr, "locked": true},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupLocked(ctx, a, jidStr, true)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().SetGroupLocked(ctx, gjid, true); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "locked": true})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "group JID (…@g.us)")
@@ -174,34 +99,14 @@ func newGroupsUnlockCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.lock", map[string]any{"jid": jidStr, "locked": false},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupLocked(ctx, a, jidStr, false)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().SetGroupLocked(ctx, gjid, false); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "locked": false})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "group JID (…@g.us)")
@@ -217,34 +122,14 @@ func newGroupsAnnounceCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.announce", map[string]any{"jid": jidStr, "announce": true},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupAnnounce(ctx, a, jidStr, true)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().SetGroupAnnounce(ctx, gjid, true); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "announce": true})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "group JID (…@g.us)")
@@ -260,34 +145,14 @@ func newGroupsUnannounceCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.announce", map[string]any{"jid": jidStr, "announce": false},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupAnnounce(ctx, a, jidStr, false)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().SetGroupAnnounce(ctx, gjid, false); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "announce": false})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "group JID (…@g.us)")
@@ -308,34 +173,14 @@ func newGroupsJoinApprovalCmd(flags *rootFlags) *cobra.Command {
 			if enable == disable {
 				return fmt.Errorf("specify exactly one of --on or --off")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.join-approval", map[string]any{"jid": jidStr, "enable": enable},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupJoinApproval(ctx, a, jidStr, enable)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().SetGroupJoinApprovalMode(ctx, gjid, enable); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "join_approval": enable})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "group JID (…@g.us)")
@@ -354,43 +199,14 @@ func newGroupsMemberAddModeCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			var m types.GroupMemberAddMode
-			switch strings.ToLower(strings.TrimSpace(mode)) {
-			case "admin":
-				m = types.GroupMemberAddModeAdmin
-			case "all":
-				m = types.GroupMemberAddModeAllMember
-			default:
-				return fmt.Errorf("--mode must be 'admin' or 'all'")
-			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.member-add-mode", map[string]any{"jid": jidStr, "mode": mode},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupMemberAddMode(ctx, a, jidStr, mode)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().SetGroupMemberAddMode(ctx, gjid, m); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "member_add_mode": string(m)})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "group JID (…@g.us)")

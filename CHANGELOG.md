@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- IPC: live-connection commands now delegate to a running sync daemon over IPC
+  instead of failing with "store is locked". Previously only `send`, `status`,
+  `messages`, `presence`, `media`, and `chats` delegated; now all of `groups`
+  (info, rename, leave, topic, photo, lock/unlock, announce/unannounce,
+  join-approval, member-add-mode, participants, invite link, join, create,
+  requests), `profile`, `channels`, and `send poll` work while the daemon holds
+  the store lock.
+
+### Changed
+
+- JSON output for some live commands is now a stable object instead of a raw
+  array / library struct, so it matches between the direct and daemon paths:
+  `groups info`, `groups create`, `channels info` return curated objects;
+  `groups participants`, `groups requests list`, `channels list` wrap their
+  results (`participants`, `requests`, `channels`).
+
 ## 1.1.0 - 2026-06-07
 
 ### Added

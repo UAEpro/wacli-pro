@@ -68,6 +68,69 @@ func resolveStoreDir(flags *rootFlags) string {
 	return dir
 }
 
+// runLiveOrDelegate runs a live-connection operation, delegating to the running
+// daemon over IPC when one is available (so it works while the daemon holds the
+// store lock), otherwise acquiring the lock and connecting directly. The op
+// closure runs against a connected app and returns the same serializable result
+// the daemon's IPC handler would return, so both paths produce identical output.
+func runLiveOrDelegate(flags *rootFlags, command string, params map[string]any,
+	op func(ctx context.Context, a *app.App) (map[string]any, error)) (map[string]any, error) {
+
+	if data, err := tryDaemonCall(flags, command, params); err != nil {
+		return nil, err
+	} else if data != nil {
+		return data, nil
+	}
+
+	ctx, cancel := withTimeout(context.Background(), flags)
+	defer cancel()
+
+	a, lk, err := newApp(ctx, flags, true, false)
+	if err != nil {
+		return nil, err
+	}
+	defer closeApp(a, lk)
+
+	if err := a.EnsureAuthed(); err != nil {
+		return nil, err
+	}
+	if err := a.Connect(ctx, false, nil); err != nil {
+		return nil, err
+	}
+	return op(ctx, a)
+}
+
+// outputOK renders a simple action result: the JSON map with --json, or "OK".
+func outputOK(flags *rootFlags, data map[string]any) error {
+	if flags.asJSON {
+		return out.WriteJSON(os.Stdout, data)
+	}
+	fmt.Fprintln(os.Stdout, "OK")
+	return nil
+}
+
+// paramStringSlice extracts a []string from IPC params, tolerating the []any
+// form produced by JSON decoding.
+func paramStringSlice(params map[string]any, key string) []string {
+	v, ok := params[key]
+	if !ok {
+		return nil
+	}
+	switch arr := v.(type) {
+	case []string:
+		return arr
+	case []any:
+		res := make([]string, 0, len(arr))
+		for _, e := range arr {
+			if s, ok := e.(string); ok {
+				res = append(res, s)
+			}
+		}
+		return res
+	}
+	return nil
+}
+
 // tryDaemonCall attempts to delegate a command to the running daemon via IPC.
 // Returns (nil, nil) if no daemon is available (caller should fall back to direct execution).
 // Returns (data, nil) on success.
