@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added
+
+- Daemon: `daemon restart` and `daemon uninstall` commands.
+
+### Changed
+
+- Daemon: `daemon start` now installs wacli as a **native OS service** (systemd
+  user service on Linux/WSL, launchd on macOS, Windows Service Manager) instead
+  of a detached PID-file process. The service auto-starts on boot and restarts
+  on crash. `daemon start` is idempotent and reinstalls the unit to match the
+  current binary.
+- JSON output for some live commands is now a stable object instead of a raw
+  array / library struct, so it matches between the direct and daemon paths:
+  `groups info`, `groups create`, `channels info` return curated objects;
+  `groups participants`, `groups requests list`, `channels list` wrap their
+  results (`participants`, `requests`, `channels`).
+
 ### Fixed
 
 - IPC: live-connection commands now delegate to a running sync daemon over IPC
@@ -12,14 +29,6 @@
   requests), `profile`, `channels`, `send poll`, and `history backfill` work
   while the daemon holds the store lock. `history backfill` against a running
   daemon reuses its live connection instead of starting a second sync.
-
-### Changed
-
-- JSON output for some live commands is now a stable object instead of a raw
-  array / library struct, so it matches between the direct and daemon paths:
-  `groups info`, `groups create`, `channels info` return curated objects;
-  `groups participants`, `groups requests list`, `channels list` wrap their
-  results (`participants`, `requests`, `channels`).
 
 ## 1.3.0 - 2026-06-07
 
