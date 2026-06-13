@@ -7,10 +7,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/UAEpro/wacli-pro/internal/out"
-	"github.com/UAEpro/wacli-pro/internal/wa"
 	"github.com/spf13/cobra"
-	"go.mau.fi/whatsmeow/types"
 )
 
 func newGroupsCreateCmd(flags *rootFlags) *cobra.Command {
@@ -26,43 +25,17 @@ func newGroupsCreateCmd(flags *rootFlags) *cobra.Command {
 			if len(users) == 0 {
 				return fmt.Errorf("at least one --user is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.create", map[string]any{"name": name, "users": users},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupCreate(ctx, a, name, users)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			var participants []types.JID
-			for _, u := range users {
-				jid, err := wa.ParseUserOrJID(u)
-				if err != nil {
-					return fmt.Errorf("invalid user %q: %w", u, err)
-				}
-				participants = append(participants, jid)
-			}
-
-			info, err := a.WA().CreateGroup(ctx, name, participants)
-			if err != nil {
-				return err
-			}
-			if info != nil {
-				warnOnErr(persistGroupInfo(a.DB(), info), "persist group info")
-			}
-
 			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, info)
+				return out.WriteJSON(os.Stdout, data)
 			}
-			fmt.Fprintf(os.Stdout, "Created: %s (%s)\n", info.GroupName.Name, info.JID.String())
+			fmt.Fprintf(os.Stdout, "Created: %v (%v)\n", data["name"], data["jid"])
 			return nil
 		},
 	}
@@ -91,42 +64,26 @@ func newGroupsRequestsListCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.requests-list", map[string]any{"jid": jidStr},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupRequestsList(ctx, a, jidStr)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			requests, err := a.WA().GetGroupRequestParticipants(ctx, gjid)
-			if err != nil {
-				return err
-			}
-
 			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, requests)
+				return out.WriteJSON(os.Stdout, data)
 			}
-			if len(requests) == 0 {
+			list, _ := data["requests"].([]any)
+			if len(list) == 0 {
 				fmt.Fprintln(os.Stdout, "No pending requests")
 				return nil
 			}
 			w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 			fmt.Fprintln(w, "JID\tREQUESTED AT")
-			for _, r := range requests {
-				fmt.Fprintf(w, "%s\t%s\n", r.JID.String(), r.RequestedAt.Local().Format("2006-01-02 15:04"))
+			for _, item := range list {
+				m, _ := item.(map[string]any)
+				fmt.Fprintf(w, "%v\t%v\n", m["jid"], m["requested_at"])
 			}
 			_ = w.Flush()
 			return nil
@@ -173,46 +130,13 @@ func handleGroupRequestAction(flags *rootFlags, jidStr string, users []string, a
 	if len(users) == 0 {
 		return fmt.Errorf("at least one --user is required")
 	}
-	ctx, cancel := withTimeout(context.Background(), flags)
-	defer cancel()
-
-	a, lk, err := newApp(ctx, flags, true, false)
+	data, err := runLiveOrDelegate(flags, "groups.requests-action",
+		map[string]any{"jid": jidStr, "users": users, "approve": approve},
+		func(ctx context.Context, a *app.App) (map[string]any, error) {
+			return opGroupRequestsAction(ctx, a, jidStr, users, approve)
+		})
 	if err != nil {
 		return err
 	}
-	defer closeApp(a, lk)
-
-	if err := a.EnsureAuthed(); err != nil {
-		return err
-	}
-	if err := a.Connect(ctx, false, nil); err != nil {
-		return err
-	}
-
-	gjid, err := types.ParseJID(jidStr)
-	if err != nil {
-		return err
-	}
-	var jids []types.JID
-	for _, u := range users {
-		jid, err := wa.ParseUserOrJID(u)
-		if err != nil {
-			return fmt.Errorf("invalid user %q: %w", u, err)
-		}
-		jids = append(jids, jid)
-	}
-
-	_, err = a.WA().UpdateGroupRequestParticipants(ctx, gjid, jids, approve)
-	if err != nil {
-		return err
-	}
-	action := "rejected"
-	if approve {
-		action = "approved"
-	}
-	if flags.asJSON {
-		return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "action": action, "users": users})
-	}
-	fmt.Fprintln(os.Stdout, "OK")
-	return nil
+	return outputOK(flags, data)
 }

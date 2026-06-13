@@ -38,6 +38,47 @@ func registerIPCHandlers(s *ipc.Server) {
 	s.Handle("chats.unmute", handleChatsUnmute)
 	s.Handle("chats.mark-read", handleChatsMarkRead)
 	s.Handle("chats.mark-unread", handleChatsMarkUnread)
+	s.Handle("send.poll", handleSendPoll)
+	s.Handle("groups.info", handleGroupsInfo)
+	s.Handle("groups.rename", handleGroupsRename)
+	s.Handle("groups.leave", handleGroupsLeave)
+	s.Handle("groups.topic", handleGroupsTopic)
+	s.Handle("groups.photo", handleGroupsPhoto)
+	s.Handle("groups.lock", handleGroupsLock)
+	s.Handle("groups.announce", handleGroupsAnnounce)
+	s.Handle("groups.join-approval", handleGroupsJoinApproval)
+	s.Handle("groups.member-add-mode", handleGroupsMemberAddMode)
+	s.Handle("groups.participants", handleGroupsParticipants)
+	s.Handle("groups.invite-link", handleGroupsInviteLink)
+	s.Handle("groups.join", handleGroupsJoin)
+	s.Handle("groups.create", handleGroupsCreate)
+	s.Handle("groups.requests-list", handleGroupsRequestsList)
+	s.Handle("groups.requests-action", handleGroupsRequestsAction)
+	s.Handle("groups.refresh", handleGroupsRefresh)
+	s.Handle("profile.set-about", handleProfileSetAbout)
+	s.Handle("profile.set-photo", handleProfileSetPhoto)
+	s.Handle("profile.remove-photo", handleProfileRemovePhoto)
+	s.Handle("channels.list", handleChannelsList)
+	s.Handle("channels.info", handleChannelsInfo)
+	s.Handle("channels.follow", handleChannelsFollow)
+	s.Handle("channels.unfollow", handleChannelsFollow)
+	s.Handle("channels.mute", handleChannelsMute)
+	s.Handle("channels.unmute", handleChannelsMute)
+	s.Handle("history.backfill", handleHistoryBackfill)
+}
+
+// --- groups handlers ---
+
+func handleGroupsInfo(ctx context.Context, a *app.App, params map[string]any) (any, error) {
+	jidStr := paramString(params, "jid")
+	if strings.TrimSpace(jidStr) == "" {
+		return nil, fmt.Errorf("--jid is required")
+	}
+	gjid, err := types.ParseJID(jidStr)
+	if err != nil {
+		return nil, err
+	}
+	return fetchGroupInfo(ctx, a, gjid)
 }
 
 // --- param helpers ---

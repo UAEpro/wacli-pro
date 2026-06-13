@@ -3,13 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/UAEpro/wacli-pro/internal/out"
-	"github.com/UAEpro/wacli-pro/internal/wa"
+	"github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/spf13/cobra"
-	"go.mau.fi/whatsmeow/types"
 )
 
 func newGroupsParticipantsCmd(flags *rootFlags) *cobra.Command {
@@ -34,48 +31,15 @@ func newGroupsParticipantsActionCmd(flags *rootFlags, action string) *cobra.Comm
 			if strings.TrimSpace(group) == "" || len(users) == 0 {
 				return fmt.Errorf("--jid and at least one --user are required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.participants",
+				map[string]any{"jid": group, "users": users, "action": action},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupParticipants(ctx, a, group, users, action)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			gjid, err := types.ParseJID(group)
-			if err != nil {
-				return err
-			}
-			var jids []types.JID
-			for _, u := range users {
-				j, err := wa.ParseUserOrJID(u)
-				if err != nil {
-					return err
-				}
-				jids = append(jids, j)
-			}
-
-			updated, err := a.WA().UpdateGroupParticipants(ctx, gjid, jids, wa.GroupParticipantAction(action))
-			if err != nil {
-				return err
-			}
-			if info, err := a.WA().GetGroupInfo(ctx, gjid); err == nil && info != nil {
-				_ = persistGroupInfo(a.DB(), info)
-			}
-
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, updated)
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&group, "jid", "", "group JID (…@g.us)")

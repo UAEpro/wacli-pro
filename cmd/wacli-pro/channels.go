@@ -7,9 +7,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/UAEpro/wacli-pro/internal/out"
 	"github.com/spf13/cobra"
-	"go.mau.fi/whatsmeow/types"
 )
 
 func newChannelsCmd(flags *rootFlags) *cobra.Command {
@@ -31,36 +31,23 @@ func newChannelsListCmd(flags *rootFlags) *cobra.Command {
 		Use:   "list",
 		Short: "List subscribed channels",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "channels.list", map[string]any{},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opChannelsList(ctx, a)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			newsletters, err := a.WA().GetSubscribedNewsletters(ctx)
-			if err != nil {
-				return err
-			}
-
 			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, newsletters)
+				return out.WriteJSON(os.Stdout, data)
 			}
-
 			w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 			fmt.Fprintln(w, "NAME\tJID\tSUBSCRIBERS")
-			for _, n := range newsletters {
-				name := n.ThreadMeta.Name.Text
-				fmt.Fprintf(w, "%s\t%s\t%d\n", truncate(name, 40), n.ID.String(), n.ThreadMeta.SubscriberCount)
+			if list, ok := data["channels"].([]any); ok {
+				for _, item := range list {
+					m, _ := item.(map[string]any)
+					fmt.Fprintf(w, "%s\t%v\t%v\n", truncate(fmt.Sprintf("%v", m["name"]), 40), m["jid"], m["subscribers"])
+				}
 			}
 			_ = w.Flush()
 			return nil
@@ -79,47 +66,21 @@ func newChannelsInfoCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" && strings.TrimSpace(inviteLink) == "" {
 				return fmt.Errorf("--jid or --invite is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "channels.info", map[string]any{"jid": jidStr, "invite": inviteLink},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opChannelsInfo(ctx, a, jidStr, inviteLink)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			var info *types.NewsletterMetadata
-			if strings.TrimSpace(inviteLink) != "" {
-				info, err = a.WA().GetNewsletterInfoWithInvite(ctx, inviteLink)
-			} else {
-				jid, parseErr := types.ParseJID(jidStr)
-				if parseErr != nil {
-					return parseErr
-				}
-				info, err = a.WA().GetNewsletterInfo(ctx, jid)
-			}
-			if err != nil {
-				return err
-			}
-
 			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, info)
+				return out.WriteJSON(os.Stdout, data)
 			}
-
-			fmt.Fprintf(os.Stdout, "JID: %s\nName: %s\nDescription: %s\n",
-				info.ID.String(),
-				info.ThreadMeta.Name.Text,
-				info.ThreadMeta.Description.Text,
-			)
-			if info.ThreadMeta.SubscriberCount > 0 {
-				fmt.Fprintf(os.Stdout, "Subscribers: %d\n", info.ThreadMeta.SubscriberCount)
+			fmt.Fprintf(os.Stdout, "JID: %v\nName: %v\nDescription: %v\n", data["jid"], data["name"], data["description"])
+			if subs, _ := data["subscribers"].(float64); subs > 0 {
+				fmt.Fprintf(os.Stdout, "Subscribers: %v\n", data["subscribers"])
+			} else if subsInt, _ := data["subscribers"].(int); subsInt > 0 {
+				fmt.Fprintf(os.Stdout, "Subscribers: %d\n", subsInt)
 			}
 			return nil
 		},
@@ -138,34 +99,14 @@ func newChannelsFollowCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "channels.follow", map[string]any{"jid": jidStr, "follow": true},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opChannelsFollow(ctx, a, jidStr, true)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			jid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().FollowNewsletter(ctx, jid); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": jid.String(), "followed": true})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "channel JID (…@newsletter)")
@@ -181,34 +122,14 @@ func newChannelsUnfollowCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "channels.unfollow", map[string]any{"jid": jidStr, "follow": false},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opChannelsFollow(ctx, a, jidStr, false)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			jid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().UnfollowNewsletter(ctx, jid); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": jid.String(), "followed": false})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "channel JID (…@newsletter)")
@@ -224,34 +145,14 @@ func newChannelsMuteCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "channels.mute", map[string]any{"jid": jidStr, "mute": true},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opChannelsMute(ctx, a, jidStr, true)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			jid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().NewsletterToggleMute(ctx, jid, true); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": jid.String(), "muted": true})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "channel JID (…@newsletter)")
@@ -267,34 +168,14 @@ func newChannelsUnmuteCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "channels.unmute", map[string]any{"jid": jidStr, "mute": false},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opChannelsMute(ctx, a, jidStr, false)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			jid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			if err := a.WA().NewsletterToggleMute(ctx, jid, false); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": jid.String(), "muted": false})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&jidStr, "jid", "", "channel JID (…@newsletter)")

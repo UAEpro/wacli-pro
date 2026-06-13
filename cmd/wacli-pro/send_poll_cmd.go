@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/UAEpro/wacli-pro/internal/out"
-	"github.com/UAEpro/wacli-pro/internal/wa"
 	"github.com/spf13/cobra"
 )
 
@@ -29,36 +29,18 @@ func newSendPollCmd(flags *rootFlags) *cobra.Command {
 			if len(options) < 2 {
 				return fmt.Errorf("at least 2 --option values are required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
-			if err != nil {
-				return err
-			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			jid, err := wa.ParseUserOrJID(to)
-			if err != nil {
-				return err
-			}
-
-			pollMsg := a.WA().BuildPollCreation(question, options, maxSelections)
-			msgID, err := a.WA().SendProtoMessage(ctx, jid, pollMsg)
+			data, err := runLiveOrDelegate(flags, "send.poll", map[string]any{
+				"to": to, "question": question, "options": options, "max_selections": maxSelections,
+			}, func(ctx context.Context, a *app.App) (map[string]any, error) {
+				return opSendPoll(ctx, a, to, question, options, maxSelections)
+			})
 			if err != nil {
 				return err
 			}
 			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"id": string(msgID), "to": jid.String()})
+				return out.WriteJSON(os.Stdout, data)
 			}
-			fmt.Fprintf(os.Stdout, "Sent: %s\n", msgID)
+			fmt.Fprintf(os.Stdout, "Sent: %v\n", data["id"])
 			return nil
 		},
 	}

@@ -3,10 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/UAEpro/wacli-pro/internal/out"
+	"github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/spf13/cobra"
 )
 
@@ -30,30 +29,14 @@ func newProfileSetAboutCmd(flags *rootFlags) *cobra.Command {
 			if !cmd.Flags().Changed("text") {
 				return fmt.Errorf("--text is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "profile.set-about", map[string]any{"text": text},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opProfileSetAbout(ctx, a, text)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			if err := a.WA().SetStatusMessage(ctx, text); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"about": text})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&text, "text", "", "about text (use empty to clear)")
@@ -69,36 +52,14 @@ func newProfileSetPhotoCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(filePath) == "" {
 				return fmt.Errorf("--file is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "profile.set-photo", map[string]any{"file": filePath},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opProfileSetPhoto(ctx, a, filePath)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			avatar, err := os.ReadFile(filePath)
-			if err != nil {
-				return fmt.Errorf("read photo file: %w", err)
-			}
-
-			pictureID, err := a.WA().SetProfilePhoto(ctx, avatar)
-			if err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"picture_id": pictureID})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	cmd.Flags().StringVar(&filePath, "file", "", "path to JPEG photo file")
@@ -110,30 +71,14 @@ func newProfileRemovePhotoCmd(flags *rootFlags) *cobra.Command {
 		Use:   "remove-photo",
 		Short: "Remove your profile photo",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "profile.remove-photo", map[string]any{},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opProfileRemovePhoto(ctx, a)
+				})
 			if err != nil {
 				return err
 			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-
-			if _, err := a.WA().SetProfilePhoto(ctx, nil); err != nil {
-				return err
-			}
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"removed": true})
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return outputOK(flags, data)
 		},
 	}
 	return cmd

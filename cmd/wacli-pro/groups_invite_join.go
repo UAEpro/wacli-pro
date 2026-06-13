@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/UAEpro/wacli-pro/internal/app"
 	"github.com/UAEpro/wacli-pro/internal/out"
 	"github.com/spf13/cobra"
-	"go.mau.fi/whatsmeow/types"
 )
 
 func newGroupsInviteCmd(flags *rootFlags) *cobra.Command {
@@ -39,33 +39,17 @@ func newGroupsInviteLinkGetCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
-			if err != nil {
-				return err
-			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			link, err := a.WA().GetGroupInviteLink(ctx, gjid, false)
+			data, err := runLiveOrDelegate(flags, "groups.invite-link", map[string]any{"jid": jidStr, "revoke": false},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupInviteLink(ctx, a, jidStr, false)
+				})
 			if err != nil {
 				return err
 			}
 			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "link": link})
+				return out.WriteJSON(os.Stdout, data)
 			}
-			fmt.Fprintln(os.Stdout, link)
+			fmt.Fprintln(os.Stdout, data["link"])
 			return nil
 		},
 	}
@@ -82,33 +66,17 @@ func newGroupsInviteLinkRevokeCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(jidStr) == "" {
 				return fmt.Errorf("--jid is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
-			if err != nil {
-				return err
-			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-			gjid, err := types.ParseJID(jidStr)
-			if err != nil {
-				return err
-			}
-			link, err := a.WA().GetGroupInviteLink(ctx, gjid, true)
+			data, err := runLiveOrDelegate(flags, "groups.invite-link", map[string]any{"jid": jidStr, "revoke": true},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupInviteLink(ctx, a, jidStr, true)
+				})
 			if err != nil {
 				return err
 			}
 			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": gjid.String(), "link": link, "revoked": true})
+				return out.WriteJSON(os.Stdout, data)
 			}
-			fmt.Fprintln(os.Stdout, link)
+			fmt.Fprintln(os.Stdout, data["link"])
 			return nil
 		},
 	}
@@ -125,32 +93,17 @@ func newGroupsJoinCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(code) == "" {
 				return fmt.Errorf("--code is required")
 			}
-			ctx, cancel := withTimeout(context.Background(), flags)
-			defer cancel()
-
-			a, lk, err := newApp(ctx, flags, true, false)
+			data, err := runLiveOrDelegate(flags, "groups.join", map[string]any{"code": code},
+				func(ctx context.Context, a *app.App) (map[string]any, error) {
+					return opGroupJoin(ctx, a, code)
+				})
 			if err != nil {
 				return err
-			}
-			defer closeApp(a, lk)
-
-			if err := a.EnsureAuthed(); err != nil {
-				return err
-			}
-			if err := a.Connect(ctx, false, nil); err != nil {
-				return err
-			}
-			jid, err := a.WA().JoinGroupWithLink(ctx, code)
-			if err != nil {
-				return err
-			}
-			if info, err := a.WA().GetGroupInfo(ctx, jid); err == nil && info != nil {
-				_ = persistGroupInfo(a.DB(), info)
 			}
 			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{"jid": jid.String(), "joined": true})
+				return out.WriteJSON(os.Stdout, data)
 			}
-			fmt.Fprintf(os.Stdout, "Joined: %s\n", jid.String())
+			fmt.Fprintf(os.Stdout, "Joined: %v\n", data["jid"])
 			return nil
 		},
 	}
