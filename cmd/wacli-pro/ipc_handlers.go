@@ -64,6 +64,7 @@ func registerIPCHandlers(s *ipc.Server) {
 	s.Handle("channels.unfollow", handleChannelsFollow)
 	s.Handle("channels.mute", handleChannelsMute)
 	s.Handle("channels.unmute", handleChannelsMute)
+	s.Handle("history.backfill", handleHistoryBackfill)
 }
 
 // --- groups handlers ---

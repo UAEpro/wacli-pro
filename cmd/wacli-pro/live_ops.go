@@ -481,3 +481,33 @@ func handleSendPoll(ctx context.Context, a *app.App, p map[string]any) (any, err
 	return opSendPoll(ctx, a, paramString(p, "to"), paramString(p, "question"),
 		paramStringSlice(p, "options"), int(paramFloat64(p, "max_selections")))
 }
+
+// ---------------------------------------------------------------------------
+// history backfill
+// ---------------------------------------------------------------------------
+
+func backfillResultMap(res app.BackfillResult) map[string]any {
+	return map[string]any{
+		"chat":            res.ChatJID,
+		"requests_sent":   res.RequestsSent,
+		"responses_seen":  res.ResponsesSeen,
+		"messages_added":  res.MessagesAdded,
+		"messages_synced": res.MessagesSynced,
+	}
+}
+
+// handleHistoryBackfill runs a backfill against the daemon's live connection
+// (BackfillOnConnected) rather than starting a second one-shot sync.
+func handleHistoryBackfill(ctx context.Context, a *app.App, p map[string]any) (any, error) {
+	res, err := a.BackfillOnConnected(ctx, app.BackfillOptions{
+		ChatJID:        paramString(p, "chat"),
+		Count:          int(paramFloat64(p, "count")),
+		Requests:       int(paramFloat64(p, "requests")),
+		WaitPerRequest: time.Duration(paramFloat64(p, "wait_ms")) * time.Millisecond,
+		IdleExit:       time.Duration(paramFloat64(p, "idle_exit_ms")) * time.Millisecond,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return backfillResultMap(res), nil
+}

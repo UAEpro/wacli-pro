@@ -9,8 +9,9 @@
   `messages`, `presence`, `media`, and `chats` delegated; now all of `groups`
   (info, rename, leave, topic, photo, lock/unlock, announce/unannounce,
   join-approval, member-add-mode, participants, invite link, join, create,
-  requests), `profile`, `channels`, and `send poll` work while the daemon holds
-  the store lock.
+  requests), `profile`, `channels`, `send poll`, and `history backfill` work
+  while the daemon holds the store lock. `history backfill` against a running
+  daemon reuses its live connection instead of starting a second sync.
 
 ### Changed
 
@@ -19,6 +20,27 @@
   `groups info`, `groups create`, `channels info` return curated objects;
   `groups participants`, `groups requests list`, `channels list` wrap their
   results (`participants`, `requests`, `channels`).
+
+## 1.3.0 - 2026-06-07
+
+### Added
+
+- Auth: phone-number pairing-code login via `auth --phone <number>` as an alternative to QR.
+- Sync: `--webhook <url>` posts message events to an HTTP endpoint during sync (best-effort delivery).
+- Send: automatic link previews for `send text`, with `--no-preview` to disable.
+- Sync: run limits — `--max-messages` and `--max-db-size` (e.g. `500MB`, `1GB`) to bound a sync.
+- Calls: `calls` command to list call events captured during sync.
+
+## 1.2.0 - 2026-06-07
+
+### Added
+
+- Channels: `channels` command group (`list`, `info`, `follow`/`unfollow`, `mute`/`unmute`) for WhatsApp channels (newsletters).
+- Profile: `profile` command group (`set-about`, `set-photo`, `remove-photo`).
+- Send: `send poll` to create polls.
+- Groups: `groups create` to create a group; `groups requests` (`list`/`approve`/`reject`) to manage join requests.
+- Messages: `messages export` to export a chat's messages as JSON.
+- Store: `store stats` for local database statistics.
 
 ## 1.1.0 - 2026-06-07
 

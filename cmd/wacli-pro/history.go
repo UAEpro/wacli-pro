@@ -37,6 +37,20 @@ func newHistoryBackfillCmd(flags *rootFlags) *cobra.Command {
 				return fmt.Errorf("--chat is required")
 			}
 
+			// Delegate to the running daemon (reusing its live connection)
+			// when available; otherwise run a one-shot backfill directly.
+			if data, err := tryDaemonCall(flags, "history.backfill", map[string]any{
+				"chat":         chat,
+				"count":        count,
+				"requests":     requests,
+				"wait_ms":      wait.Milliseconds(),
+				"idle_exit_ms": idleExit.Milliseconds(),
+			}); err != nil {
+				return err
+			} else if data != nil {
+				return outputBackfill(flags, data)
+			}
+
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
@@ -56,19 +70,7 @@ func newHistoryBackfillCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, map[string]any{
-					"chat":            res.ChatJID,
-					"requests_sent":   res.RequestsSent,
-					"responses_seen":  res.ResponsesSeen,
-					"messages_added":  res.MessagesAdded,
-					"messages_synced": res.MessagesSynced,
-				})
-			}
-
-			fmt.Fprintf(os.Stdout, "Backfill complete for %s. Added %d messages (%d requests).\n", res.ChatJID, res.MessagesAdded, res.RequestsSent)
-			return nil
+			return outputBackfill(flags, backfillResultMap(res))
 		},
 	}
 
@@ -78,4 +80,15 @@ func newHistoryBackfillCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().DurationVar(&wait, "wait", 60*time.Second, "time to wait for an on-demand response per request")
 	cmd.Flags().DurationVar(&idleExit, "idle-exit", 5*time.Second, "exit after being idle (after backfill requests)")
 	return cmd
+}
+
+// outputBackfill renders a backfill result as JSON or a human summary, working
+// for both the direct path and the daemon (IPC, round-tripped) path.
+func outputBackfill(flags *rootFlags, data map[string]any) error {
+	if flags.asJSON {
+		return out.WriteJSON(os.Stdout, data)
+	}
+	fmt.Fprintf(os.Stdout, "Backfill complete for %v. Added %v messages (%v requests).\n",
+		data["chat"], data["messages_added"], data["requests_sent"])
+	return nil
 }
