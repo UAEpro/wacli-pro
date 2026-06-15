@@ -80,6 +80,10 @@ func (c *Client) init() error {
 
 	logger := waLog.Stdout("Client", "ERROR", true)
 	c.client = whatsmeow.NewClient(deviceStore, logger)
+	// Ask the primary device (phone) to resend any message this linked device
+	// fails to decrypt, instead of silently dropping it. Recovers messages lost
+	// to Signal session desync (the "old version of WhatsApp" placeholder).
+	c.client.AutomaticMessageRerequestFromPhone = true
 	return nil
 }
 
