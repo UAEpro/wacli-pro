@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- WhatsApp connection: update `whatsmeow` to the 2026-07-13 snapshot to avoid
+  `Client outdated (405)` connection failures after WhatsApp Web version
+  changes.
+
 ## 1.4.0 - 2026-06-13
 
 ### Added

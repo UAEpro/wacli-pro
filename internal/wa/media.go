@@ -65,12 +65,7 @@ func (c *Client) DownloadMediaToFile(ctx context.Context, directPath string, enc
 	if fileLength > MaxMediaDownloadSize {
 		return 0, fmt.Errorf("media too large (%d bytes); maximum download size is %d bytes", fileLength, MaxMediaDownloadSize)
 	}
-	length := -1
-	if fileLength > 0 {
-		length = int(fileLength)
-	}
-
-	if err := cli.DownloadMediaWithPathToFile(ctx, directPath, encFileHash, fileHash, mediaKey, length, mt, mmsType, tmpFile); err != nil {
+	if err := cli.DownloadMediaWithPathToFile(ctx, directPath, encFileHash, fileHash, mediaKey, mt, mmsType, false, tmpFile); err != nil {
 		return 0, err
 	}
 	if err := tmpFile.Sync(); err != nil {
