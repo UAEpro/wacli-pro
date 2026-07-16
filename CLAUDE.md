@@ -80,6 +80,7 @@ Tests use Go's standard `testing` package with table-driven tests. Database test
 - `WACLI_PRO_STORE_DIR` — override the store directory (default: `~/.wacli-pro`). Equivalent to `--store`
 - `WACLI_PRO_DEVICE_LABEL` — custom device label shown in WhatsApp linked devices
 - `WACLI_PRO_DEVICE_PLATFORM` — device platform override (defaults to CHROME)
+- `WACLI_PRO_NO_PHONE_REREQUEST` — set to any value to stop asking the phone to resend undecryptable messages (reduces phone wakeups/load at the cost of dropping those messages)
 
 ## Releases & Deployment
 

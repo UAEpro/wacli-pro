@@ -104,6 +104,7 @@ type App struct {
 	events *out.EventWriter
 	wa     WAClient
 	db     *store.DB
+	names  resolveCache
 }
 
 func New(opts Options) (*App, error) {

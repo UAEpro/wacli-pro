@@ -42,6 +42,10 @@ func sendFile(ctx context.Context, a interface {
 	if err != nil {
 		return "", nil, err
 	}
+	// Re-check after reading: the file may have grown between Stat and ReadFile.
+	if int64(len(data)) > maxUploadSize {
+		return "", nil, fmt.Errorf("file too large (%d bytes); maximum upload size is %d bytes", len(data), maxUploadSize)
+	}
 
 	name := strings.TrimSpace(filename)
 	if name == "" {
@@ -129,7 +133,7 @@ func sendFile(ctx context.Context, a interface {
 			PTT:           proto.Bool(ptt),
 		}
 		if ptt {
-			if dur, err := probeAudioDuration(filePath); err == nil && dur > 0 {
+			if dur, err := probeAudioDuration(ctx, filePath); err == nil && dur > 0 {
 				audioMsg.Seconds = proto.Uint32(dur)
 			}
 			audioMsg.Waveform = generateWaveform(data)
@@ -187,8 +191,12 @@ func sendFile(ctx context.Context, a interface {
 
 // probeAudioDuration uses ffprobe to get the duration of an audio file in seconds.
 // Returns 0 if ffprobe is not available or fails.
-func probeAudioDuration(path string) (uint32, error) {
-	out, err := exec.Command("ffprobe",
+func probeAudioDuration(ctx context.Context, path string) (uint32, error) {
+	// Bound ffprobe even when the caller's context has no deadline; probing a
+	// local file should be near-instant.
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "ffprobe",
 		"-v", "error",
 		"-show_entries", "format=duration",
 		"-of", "default=noprint_wrappers=1:nokey=1",

@@ -30,6 +30,8 @@ func opGroupRename(ctx context.Context, a *app.App, jidStr, name string) (map[st
 	if err := a.WA().SetGroupName(ctx, gjid, name); err != nil {
 		return nil, err
 	}
+	// Drop the sync loop's cached name so new messages pick up the rename.
+	a.InvalidateNameCache(gjid)
 	if info, err := a.WA().GetGroupInfo(ctx, gjid); err == nil && info != nil {
 		warnOnErr(persistGroupInfo(a.DB(), info), "persist group info")
 	}
@@ -255,6 +257,9 @@ func opGroupRefresh(ctx context.Context, a *app.App) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The refresh fetched fresh metadata for every group; drop stale cached
+	// names so the sync loop doesn't keep writing old ones.
+	a.InvalidateAllNameCaches()
 	for _, g := range gs {
 		if g == nil {
 			continue

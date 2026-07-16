@@ -160,13 +160,41 @@ func (a *App) runBackfillRequests(ctx context.Context, chat types.JID, chatStr s
 
 		fmt.Fprintf(os.Stderr, "On-demand history sync: %d conversations, %d messages.\n", resp.conversations, resp.messages)
 
-		newOldest, err := a.db.GetOldestMessageInfo(chatStr)
-		if err == nil && newOldest.MsgID == oldest.MsgID {
-			fmt.Fprintln(os.Stderr, "No older messages were added (stopping).")
-			return requestsSent, responsesSeen, nil
-		}
 		if resp.messages <= 0 {
 			fmt.Fprintln(os.Stderr, "No messages returned (stopping).")
+			return requestsSent, responsesSeen, nil
+		}
+
+		// The sync pipeline persists history batches asynchronously, so the
+		// response signal can arrive before the messages hit the DB. Wait for
+		// the oldest-message cursor to move before judging progress, or this
+		// can observe the pre-batch state and stop prematurely. The idle
+		// deadline resets while total message count keeps growing, so a busy
+		// pipeline (large initial sync) gets time to reach our batch.
+		cursorMoved := false
+		lastCount, _ := a.db.CountMessages()
+		waitDeadline := time.Now().Add(10 * time.Second)
+		for {
+			newOldest, err := a.db.GetOldestMessageInfo(chatStr)
+			if err == nil && newOldest.MsgID != oldest.MsgID {
+				cursorMoved = true
+				break
+			}
+			if n, err := a.db.CountMessages(); err == nil && n != lastCount {
+				lastCount = n
+				waitDeadline = time.Now().Add(10 * time.Second)
+			}
+			if time.Now().After(waitDeadline) {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return requestsSent, responsesSeen, ctx.Err()
+			case <-time.After(150 * time.Millisecond):
+			}
+		}
+		if !cursorMoved {
+			fmt.Fprintln(os.Stderr, "No older messages were added (stopping).")
 			return requestsSent, responsesSeen, nil
 		}
 		if resp.endType == waHistorySync.Conversation_COMPLETE_AND_NO_MORE_MESSAGE_REMAIN_ON_PRIMARY {

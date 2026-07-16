@@ -60,6 +60,13 @@ func (s *Server) Serve(ctx context.Context) error {
 			if ctx.Err() != nil {
 				return nil
 			}
+			// Back off briefly so a persistent accept error (e.g. fd
+			// exhaustion) doesn't busy-spin the daemon at 100% CPU.
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(100 * time.Millisecond):
+			}
 			continue
 		}
 		go s.handleConn(ctx, conn)
@@ -86,11 +93,13 @@ func (s *Server) handleConn(parentCtx context.Context, conn net.Conn) {
 		return
 	}
 
-	ctx := parentCtx
-	cancel := func() {}
+	// Cap handler time even when the client requests no timeout, so a stuck
+	// WhatsApp call can't tie up the connection for the daemon's lifetime.
+	timeout := 10 * time.Minute
 	if req.TimeoutMS > 0 {
-		ctx, cancel = context.WithTimeout(parentCtx, time.Duration(req.TimeoutMS)*time.Millisecond)
+		timeout = time.Duration(req.TimeoutMS) * time.Millisecond
 	}
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
 
 	_ = conn.SetReadDeadline(time.Time{})

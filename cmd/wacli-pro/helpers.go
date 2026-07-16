@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -150,8 +151,14 @@ func tryDaemonCall(flags *rootFlags, command string, params map[string]any) (map
 		TimeoutMS: flags.timeout.Milliseconds(),
 	})
 	if err != nil {
-		// Connection error — fall back to direct execution.
-		return nil, nil
+		if errors.Is(err, ipc.ErrDaemonUnavailable) {
+			// Never reached the daemon — fall back to direct execution.
+			return nil, nil
+		}
+		// The request was dispatched: the daemon may still be executing it
+		// (it holds the store lock), so falling back could duplicate the
+		// operation. Surface the failure instead.
+		return nil, fmt.Errorf("daemon call %s failed: %w", command, err)
 	}
 	if !resp.Success {
 		return nil, fmt.Errorf("%s", resp.Error)

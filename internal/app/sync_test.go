@@ -303,6 +303,73 @@ func TestSyncChatStateEvents(t *testing.T) {
 	}
 }
 
+func TestSyncGroupMetadataFetchedOncePerBurst(t *testing.T) {
+	a := newTestApp(t)
+	f := newFakeWA()
+	a.wa = f
+
+	group := types.JID{User: "777", Server: types.GroupServer}
+	member := types.JID{User: "111", Server: types.DefaultUserServer}
+	gi := &types.GroupInfo{JID: group}
+	gi.GroupName.Name = "Test Group"
+	gi.Participants = []types.GroupParticipant{{JID: member}}
+	f.groups[group] = gi
+
+	base := time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC)
+	var msgs []interface{}
+	for i := 0; i < 10; i++ {
+		msgs = append(msgs, &events.Message{
+			Info: types.MessageInfo{
+				MessageSource: types.MessageSource{
+					Chat:    group,
+					Sender:  member,
+					IsGroup: true,
+				},
+				ID:        types.MessageID(rune('a'+i)) + "-group",
+				Timestamp: base.Add(time.Duration(i) * time.Second),
+				PushName:  "Member",
+			},
+			Message: &waProto.Message{Conversation: proto.String("hi")},
+		})
+	}
+	f.connectEvents = msgs
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+	}()
+	res, err := a.Sync(ctx, SyncOptions{Mode: SyncModeFollow, AllowQR: false})
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if res.MessagesStored != 10 {
+		t.Fatalf("expected 10 MessagesStored, got %d", res.MessagesStored)
+	}
+
+	f.mu.Lock()
+	calls := f.groupInfoCalls
+	f.mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("expected exactly 1 GetGroupInfo call for a burst of group messages, got %d", calls)
+	}
+
+	c, err := a.db.GetChat(group.String())
+	if err != nil {
+		t.Fatalf("GetChat: %v", err)
+	}
+	if c.Name != "Test Group" {
+		t.Fatalf("expected chat name 'Test Group', got %q", c.Name)
+	}
+	groups, err := a.db.ListGroups("", 10, true)
+	if err != nil || len(groups) != 1 {
+		t.Fatalf("expected 1 stored group, got %d (err=%v)", len(groups), err)
+	}
+	if groups[0].Name != "Test Group" {
+		t.Fatalf("expected stored group name 'Test Group', got %q", groups[0].Name)
+	}
+}
+
 func TestSyncOnceIdleExit(t *testing.T) {
 	a := newTestApp(t)
 	f := newFakeWA()

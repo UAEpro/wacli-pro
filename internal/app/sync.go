@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -118,93 +119,168 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 		}
 	}
 
-	handlerID := a.wa.AddEventHandler(func(evt interface{}) {
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Fprintf(os.Stderr, "recovered panic in event handler: %v\n", r)
-			}
-		}()
-		lastEvent.Store(time.Now().UTC().UnixNano())
+	// procCtx backs message processing (decryption, LID/name resolution, DB
+	// writes). It deliberately survives ctx cancellation: whatsmeow has
+	// already acked queued events to the server, so the shutdown drain must
+	// still process them with full enrichment or their data is degraded
+	// permanently. To keep shutdown itself bounded, cancellation of ctx arms
+	// a grace period after which procCtx is canceled too — network enrichment
+	// then fails fast while the remaining drain reduces to local DB writes.
+	procCtx, procCancel := context.WithCancel(context.WithoutCancel(ctx))
+	defer procCancel()
+	go func() {
+		select {
+		case <-procCtx.Done():
+			return
+		case <-ctx.Done():
+		}
+		select {
+		case <-procCtx.Done():
+		case <-time.After(15 * time.Second):
+			procCancel()
+		}
+	}()
 
-		switch v := evt.(type) {
-		case *events.Message:
-			if chatJID, msgID, isRevoke := wa.RevokeInfo(v); isRevoke {
-				if err := a.db.MarkRevoked(chatJID, msgID); err == nil {
-					messagesStored.Add(1)
-				}
-			} else if editPM, isEdit := wa.ParseEditEvent(v); isEdit {
-				if err := a.storeParsedMessage(ctx, editPM); err == nil {
-					messagesStored.Add(1)
-				}
+	// countStored bumps the counter and emits progress once per 25 messages.
+	countStored := func() {
+		n := messagesStored.Add(1)
+		if n%25 == 0 {
+			if a.events.Enabled() {
+				a.events.Emit("progress", map[string]interface{}{"messages_synced": n})
 			} else {
-				pm := wa.ParseLiveMessage(v)
-				if pm.ReactionToID != "" && pm.ReactionEmoji == "" && v.Message != nil && v.Message.GetEncReactionMessage() != nil {
-					if reaction, err := a.wa.DecryptReaction(ctx, v); err == nil && reaction != nil {
-						pm.ReactionEmoji = reaction.GetText()
-						if pm.ReactionToID == "" {
-							if key := reaction.GetKey(); key != nil {
-								pm.ReactionToID = key.GetID()
-							}
+				fmt.Fprintf(os.Stderr, "\rSynced %d messages...", n)
+			}
+		}
+	}
+
+	processMessage := func(v *events.Message) {
+		if chatJID, msgID, isRevoke := wa.RevokeInfo(v); isRevoke {
+			if err := a.db.MarkRevoked(chatJID, msgID); err == nil {
+				countStored()
+			}
+		} else if editPM, isEdit := wa.ParseEditEvent(v); isEdit {
+			if err := a.storeParsedMessage(procCtx, editPM); err == nil {
+				countStored()
+			}
+		} else {
+			pm := wa.ParseLiveMessage(v)
+			if pm.ReactionToID != "" && pm.ReactionEmoji == "" && v.Message != nil && v.Message.GetEncReactionMessage() != nil {
+				if reaction, err := a.wa.DecryptReaction(procCtx, v); err == nil && reaction != nil {
+					pm.ReactionEmoji = reaction.GetText()
+					if pm.ReactionToID == "" {
+						if key := reaction.GetKey(); key != nil {
+							pm.ReactionToID = key.GetID()
 						}
 					}
 				}
-				if err := a.storeParsedMessage(ctx, pm); err == nil {
-					messagesStored.Add(1)
+			}
+			if err := a.storeParsedMessage(procCtx, pm); err == nil {
+				countStored()
+			}
+			{
+				data := map[string]interface{}{
+					"id":        pm.ID,
+					"chat":      pm.Chat.String(),
+					"sender":    pm.SenderJID,
+					"timestamp": pm.Timestamp.Unix(),
+					"from_me":   pm.FromMe,
+					"is_group":  pm.Chat.Server == types.GroupServer,
 				}
-				{
-					data := map[string]interface{}{
-						"id":        pm.ID,
-						"chat":      pm.Chat.String(),
-						"sender":    pm.SenderJID,
-						"timestamp": pm.Timestamp.Unix(),
-						"from_me":   pm.FromMe,
-						"is_group":  pm.Chat.Server == types.GroupServer,
+				if pm.PushName != "" {
+					data["push_name"] = pm.PushName
+				}
+				if pm.Text != "" {
+					data["text"] = pm.Text
+				}
+				if pm.Media != nil {
+					data["media_type"] = pm.Media.Type
+					if pm.Media.Caption != "" {
+						data["caption"] = pm.Media.Caption
 					}
-					if pm.PushName != "" {
-						data["push_name"] = pm.PushName
+					if pm.Media.MimeType != "" {
+						data["mime_type"] = pm.Media.MimeType
 					}
-					if pm.Text != "" {
-						data["text"] = pm.Text
+					if pm.Media.Filename != "" {
+						data["filename"] = pm.Media.Filename
 					}
-					if pm.Media != nil {
-						data["media_type"] = pm.Media.Type
-						if pm.Media.Caption != "" {
-							data["caption"] = pm.Media.Caption
-						}
-						if pm.Media.MimeType != "" {
-							data["mime_type"] = pm.Media.MimeType
-						}
-						if pm.Media.Filename != "" {
-							data["filename"] = pm.Media.Filename
-						}
-					}
-					if pm.ReactionEmoji != "" {
-						data["reaction_emoji"] = pm.ReactionEmoji
-						data["reaction_to_id"] = pm.ReactionToID
-					}
-					if pm.ReplyToID != "" {
-						data["reply_to_id"] = pm.ReplyToID
-					}
-					if a.events.Enabled() {
-						a.events.Emit("new_message", data)
-					}
-					if opts.OnMessage != nil {
-						opts.OnMessage(ctx, "new_message", data)
-					}
+				}
+				if pm.ReactionEmoji != "" {
+					data["reaction_emoji"] = pm.ReactionEmoji
+					data["reaction_to_id"] = pm.ReactionToID
+				}
+				if pm.ReplyToID != "" {
+					data["reply_to_id"] = pm.ReplyToID
+				}
+				if a.events.Enabled() {
+					a.events.Emit("new_message", data)
+				}
+				if opts.OnMessage != nil {
+					opts.OnMessage(procCtx, "new_message", data)
+				}
+			}
+			if opts.DownloadMedia && pm.Media != nil && pm.ID != "" {
+				enqueueMedia(pm.Chat.String(), pm.ID)
+			}
+		}
+		checkLimits()
+	}
+
+	processHistorySync := func(v *events.HistorySync) {
+		nConv := len(v.Data.Conversations)
+		if a.events.Enabled() {
+			a.events.Emit("history_sync", map[string]interface{}{"conversations": nConv})
+		} else {
+			fmt.Fprintf(os.Stderr, "\nProcessing history sync (%d conversations)...\n", nConv)
+		}
+		for _, conv := range v.Data.Conversations {
+			lastEvent.Store(time.Now().UTC().UnixNano())
+			chatID := strings.TrimSpace(conv.GetID())
+			if chatID == "" {
+				continue
+			}
+			for _, m := range conv.Messages {
+				lastEvent.Store(time.Now().UTC().UnixNano())
+				if m.Message == nil {
+					continue
+				}
+				pm := wa.ParseHistoryMessage(chatID, m.Message)
+				if pm.ID == "" || pm.Chat.IsEmpty() {
+					continue
+				}
+				if err := a.storeParsedMessage(procCtx, pm); err == nil {
+					countStored()
 				}
 				if opts.DownloadMedia && pm.Media != nil && pm.ID != "" {
 					enqueueMedia(pm.Chat.String(), pm.ID)
 				}
 			}
-			if messagesStored.Load()%25 == 0 {
-				n := messagesStored.Load()
-				if a.events.Enabled() {
-					a.events.Emit("progress", map[string]interface{}{"messages_synced": n})
-				} else {
-					fmt.Fprintf(os.Stderr, "\rSynced %d messages...", n)
-				}
+		}
+		n := messagesStored.Load()
+		if a.events.Enabled() {
+			a.events.Emit("progress", map[string]interface{}{"messages_synced": n})
+		} else {
+			fmt.Fprintf(os.Stderr, "\rSynced %d messages...", n)
+		}
+		checkLimits()
+	}
+
+	// Messages and history syncs are processed on a dedicated worker goroutine
+	// instead of inside the whatsmeow event handler. whatsmeow dispatches events
+	// from a single node-handling loop; blocking it (DB writes, decrypts,
+	// metadata fetches) delays receipts/acks for every subsequent message, which
+	// makes the phone retry, re-encrypt, and resend — the main source of phone
+	// lag. The handler now only enqueues, so the event loop stays drained.
+	processQueued := func(evt interface{}) {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Fprintf(os.Stderr, "recovered panic in sync worker: %v\n", r)
 			}
-			checkLimits()
+		}()
+		switch v := evt.(type) {
+		case *events.Message:
+			processMessage(v)
+		case *events.HistorySync:
+			processHistorySync(v)
 		case *events.CallOffer:
 			callType := "voice"
 			_ = a.db.InsertCallEvent(store.CallEvent{
@@ -214,68 +290,9 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 				Type:      callType,
 				Timestamp: v.Timestamp,
 			})
-		case *events.HistorySync:
-			nConv := len(v.Data.Conversations)
-			if a.events.Enabled() {
-				a.events.Emit("history_sync", map[string]interface{}{"conversations": nConv})
-			} else {
-				fmt.Fprintf(os.Stderr, "\nProcessing history sync (%d conversations)...\n", nConv)
-			}
-			for _, conv := range v.Data.Conversations {
-				lastEvent.Store(time.Now().UTC().UnixNano())
-				chatID := strings.TrimSpace(conv.GetID())
-				if chatID == "" {
-					continue
-				}
-				for _, m := range conv.Messages {
-					lastEvent.Store(time.Now().UTC().UnixNano())
-					if m.Message == nil {
-						continue
-					}
-					pm := wa.ParseHistoryMessage(chatID, m.Message)
-					if pm.ID == "" || pm.Chat.IsEmpty() {
-						continue
-					}
-					if err := a.storeParsedMessage(ctx, pm); err == nil {
-						messagesStored.Add(1)
-					}
-					if opts.DownloadMedia && pm.Media != nil && pm.ID != "" {
-						enqueueMedia(pm.Chat.String(), pm.ID)
-					}
-				}
-			}
-			n := messagesStored.Load()
-			if a.events.Enabled() {
-				a.events.Emit("progress", map[string]interface{}{"messages_synced": n})
-			} else {
-				fmt.Fprintf(os.Stderr, "\rSynced %d messages...", n)
-			}
-		case *events.Connected:
-			// Mark as unavailable so the user doesn't appear "online" 24/7
-			// and the phone keeps receiving push notifications.
-			if err := a.wa.SendPresence(ctx, types.PresenceUnavailable); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: failed to set presence unavailable: %v\n", err)
-			} else {
-				fmt.Fprintln(os.Stderr, "Presence set to unavailable.")
-			}
-			if a.events.Enabled() {
-				a.events.Emit("connected", nil)
-			} else {
-				fmt.Fprintln(os.Stderr, "\nConnected.")
-			}
-		case *events.Disconnected:
-			if a.events.Enabled() {
-				a.events.Emit("disconnected", nil)
-			} else {
-				fmt.Fprintln(os.Stderr, "\nDisconnected.")
-			}
-			select {
-			case disconnected <- struct{}{}:
-			default:
-			}
-		// Chat state events are best-effort metadata persistence inside the event
-		// handler goroutine. Errors here must not interrupt the sync loop, so we
-		// intentionally discard them with _ =.
+		// Chat state updates ride the same queue as messages so they cannot
+		// run before the message that creates their chat row. Errors are
+		// best-effort metadata persistence and intentionally discarded.
 		case *events.Archive:
 			if v.Action != nil {
 				_ = a.db.SetChatArchived(v.JID.String(), v.Action.GetArchived())
@@ -308,18 +325,137 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 				_ = a.db.SetChatUnread(v.JID.String(), !v.Action.GetRead())
 			}
 		}
+		lastEvent.Store(time.Now().UTC().UnixNano())
+	}
+
+	// Trade-offs, chosen deliberately:
+	//   - Queued events are processed even past MaxMessages/MaxDBSize: those
+	//     limits are soft bounds, and whatsmeow has already acked the events,
+	//     so dropping them would lose them permanently. Overshoot is bounded
+	//     by the queue.
+	//   - A crash between ack and commit loses whatever is queued. whatsmeow
+	//     acks before event handlers run even in fully synchronous mode, so
+	//     this window predates the queue — the queue only widens it. A
+	//     durable event journal would close it entirely.
+	queue := make(chan interface{}, 4096)
+	drainReq := make(chan struct{})
+	workerDone := make(chan struct{})
+	go func() {
+		defer close(workerDone)
+		// Queued events are ALWAYS processed, even on a hard cancel
+		// (Ctrl-C, MaxDuration, storage limits): whatsmeow has already acked
+		// them to the server, so dropping them here would lose them
+		// permanently. With a canceled ctx the network enrichment inside
+		// storeParsedMessage fails fast, so a shutdown drain reduces to
+		// bounded local DB writes.
+		drain := func() {
+			for {
+				select {
+				case evt := <-queue:
+					processQueued(evt)
+				default:
+					return
+				}
+			}
+		}
+		for {
+			select {
+			case evt := <-queue:
+				processQueued(evt)
+			case <-ctx.Done():
+				drain()
+				return
+			case <-drainReq:
+				// Graceful exits (idle exit, connect errors) drain with the
+				// context still live so enrichment stays intact.
+				drain()
+				return
+			}
+		}
+	}()
+
+	var handlerWG sync.WaitGroup
+	handlerID := a.wa.AddEventHandler(func(evt interface{}) {
+		handlerWG.Add(1)
+		defer handlerWG.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Fprintf(os.Stderr, "recovered panic in event handler: %v\n", r)
+			}
+		}()
+		lastEvent.Store(time.Now().UTC().UnixNano())
+
+		switch evt.(type) {
+		case *events.Message, *events.HistorySync, *events.CallOffer,
+			*events.Archive, *events.Pin, *events.Mute, *events.MarkChatAsRead:
+			// Never drop: whatsmeow acks the event once this handler returns,
+			// so a dropped event is lost permanently. If the queue is full
+			// this blocks (backpressure); if the worker has already exited
+			// (shutdown drain finished), process inline like the old
+			// synchronous path did.
+			select {
+			case queue <- evt:
+			case <-workerDone:
+				processQueued(evt)
+			}
+		case *events.Connected:
+			// Mark as unavailable so the user doesn't appear "online" 24/7
+			// and the phone keeps receiving push notifications.
+			if err := a.wa.SendPresence(ctx, types.PresenceUnavailable); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to set presence unavailable: %v\n", err)
+			} else {
+				fmt.Fprintln(os.Stderr, "Presence set to unavailable.")
+			}
+			if a.events.Enabled() {
+				a.events.Emit("connected", nil)
+			} else {
+				fmt.Fprintln(os.Stderr, "\nConnected.")
+			}
+		case *events.Disconnected:
+			if a.events.Enabled() {
+				a.events.Emit("disconnected", nil)
+			} else {
+				fmt.Fprintln(os.Stderr, "\nDisconnected.")
+			}
+			select {
+			case disconnected <- struct{}{}:
+			default:
+			}
+		}
 	})
 	defer a.wa.RemoveEventHandler(handlerID)
 
+	// finish stops the pipeline in order — producer first (unregister, then
+	// wait out in-flight handler invocations), then the worker, which drains
+	// the queue — so no acked event can slip in behind the drain and be
+	// silently dropped. It must be called exactly once, on every return path.
+	finish := func(err error) (SyncResult, error) {
+		a.wa.RemoveEventHandler(handlerID)
+		handlerWG.Wait()
+		close(drainReq)
+		<-workerDone
+		// Belt and braces: consume anything a pathologically late handler
+		// invocation buffered after the worker's final empty-check.
+		for {
+			select {
+			case evt := <-queue:
+				processQueued(evt)
+			default:
+				limitCancel()
+				return SyncResult{MessagesStored: messagesStored.Load()}, err
+			}
+		}
+	}
+
 	if err := a.Connect(ctx, opts.AllowQR, opts.OnQRCode); err != nil {
-		return SyncResult{}, err
+		return finish(err)
 	}
 
 	if opts.DownloadMedia {
 		var err error
 		stopMedia, err = a.runMediaWorkers(ctx, mediaJobs, 4)
 		if err != nil {
-			return SyncResult{}, err
+			return finish(err)
 		}
 		defer stopMedia()
 	}
@@ -333,7 +469,15 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 	}
 	if opts.AfterConnect != nil {
 		if err := opts.AfterConnect(ctx); err != nil {
-			return SyncResult{MessagesStored: messagesStored.Load()}, err
+			return finish(err)
+		}
+	}
+
+	emitStopping := func(res SyncResult) {
+		if a.events.Enabled() {
+			a.events.Emit("stopping", map[string]interface{}{"messages_synced": res.MessagesStored})
+		} else {
+			fmt.Fprintln(os.Stderr, "\nStopping sync.")
 		}
 	}
 
@@ -341,12 +485,9 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 		for {
 			select {
 			case <-ctx.Done():
-				if a.events.Enabled() {
-					a.events.Emit("stopping", map[string]interface{}{"messages_synced": messagesStored.Load()})
-				} else {
-					fmt.Fprintln(os.Stderr, "\nStopping sync.")
-				}
-				return SyncResult{MessagesStored: messagesStored.Load()}, nil
+				res, err := finish(nil)
+				emitStopping(res)
+				return res, err
 			case <-disconnected:
 				if a.events.Enabled() {
 					a.events.Emit("reconnecting", nil)
@@ -354,7 +495,7 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 					fmt.Fprintln(os.Stderr, "Reconnecting...")
 				}
 				if err := a.wa.ReconnectWithBackoff(ctx, 2*time.Second, 30*time.Second); err != nil {
-					return SyncResult{MessagesStored: messagesStored.Load()}, err
+					return finish(err)
 				}
 			}
 		}
@@ -370,12 +511,9 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 	for {
 		select {
 		case <-ctx.Done():
-			if a.events.Enabled() {
-				a.events.Emit("stopping", map[string]interface{}{"messages_synced": messagesStored.Load()})
-			} else {
-				fmt.Fprintln(os.Stderr, "\nStopping sync.")
-			}
-			return SyncResult{MessagesStored: messagesStored.Load()}, nil
+			res, err := finish(nil)
+			emitStopping(res)
+			return res, err
 		case <-disconnected:
 			if a.events.Enabled() {
 				a.events.Emit("reconnecting", nil)
@@ -383,20 +521,21 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 				fmt.Fprintln(os.Stderr, "Reconnecting...")
 			}
 			if err := a.wa.ReconnectWithBackoff(ctx, 2*time.Second, 30*time.Second); err != nil {
-				return SyncResult{MessagesStored: messagesStored.Load()}, err
+				return finish(err)
 			}
 		case <-ticker.C:
 			last := time.Unix(0, lastEvent.Load())
 			if time.Since(last) >= opts.IdleExit {
+				res, err := finish(nil)
 				if a.events.Enabled() {
 					a.events.Emit("idle_exit", map[string]interface{}{
 						"idle_duration":   opts.IdleExit.String(),
-						"messages_synced": messagesStored.Load(),
+						"messages_synced": res.MessagesStored,
 					})
 				} else {
 					fmt.Fprintf(os.Stderr, "\nIdle for %s, exiting.\n", opts.IdleExit)
 				}
-				return SyncResult{MessagesStored: messagesStored.Load()}, nil
+				return res, err
 			}
 		}
 	}
@@ -420,27 +559,31 @@ func (a *App) storeParsedMessage(ctx context.Context, pm wa.ParsedMessage) error
 	// under the canonical PN-based chat instead of a separate LID chat.
 	pm.Chat = a.wa.ResolveLIDToPN(ctx, pm.Chat)
 
-	chatJID := pm.Chat.ToNonAD().String()
-	chatName := a.wa.ResolveChatName(ctx, pm.Chat, pm.PushName)
+	normalizedChat := pm.Chat.ToNonAD()
+	chatJID := normalizedChat.String()
+
+	// Group/contact metadata is fetched and persisted through TTL caches so a
+	// burst of messages in one chat costs a single lookup, not one per message.
+	chatName := ""
+	switch {
+	case pm.Chat.Server == types.GroupServer || pm.Chat.IsBroadcastList():
+		chatName = a.cachedGroupName(ctx, normalizedChat)
+	case pm.Chat.Server == types.DefaultUserServer:
+		chatName = a.cachedContactName(ctx, normalizedChat)
+	}
+	if chatName == "" {
+		// The push name belongs to the sender, so it only names a DM chat
+		// when the peer (not us) sent the message. Everything else falls back
+		// to the JID so first-time chats stay labeled (and searchable by
+		// number) in chat_name.
+		if s := strings.TrimSpace(pm.PushName); s != "" && s != "-" && !pm.FromMe && pm.Chat.Server == types.DefaultUserServer {
+			chatName = s
+		} else {
+			chatName = chatJID
+		}
+	}
 	if err := a.db.UpsertChat(chatJID, chatKind(pm.Chat), chatName, pm.Timestamp); err != nil {
 		return err
-	}
-
-	// Best-effort: store contact info for DMs. Errors are intentionally
-	// discarded (_ =) because this runs inside the sync event loop and
-	// must not block message storage.
-	if pm.Chat.Server == types.DefaultUserServer {
-		normalizedChat := pm.Chat.ToNonAD()
-		if info, err := a.wa.GetContact(ctx, normalizedChat); err == nil {
-			_ = a.db.UpsertContact(
-				normalizedChat.String(),
-				normalizedChat.User,
-				info.PushName,
-				info.FullName,
-				info.FirstName,
-				info.BusinessName,
-			)
-		}
 	}
 
 	senderName := ""
@@ -454,42 +597,11 @@ func (a *App) storeParsedMessage(ctx context.Context, pm wa.ParsedMessage) error
 		if jid, err := types.ParseJID(pm.SenderJID); err == nil {
 			normalizedJID := jid.ToNonAD()
 			senderJID = normalizedJID.String()
-			if info, err := a.wa.GetContact(ctx, normalizedJID); err == nil {
-				if name := wa.BestContactName(info); name != "" {
+			if !pm.FromMe {
+				if name := a.cachedContactName(ctx, normalizedJID); name != "" {
 					senderName = name
 				}
-				_ = a.db.UpsertContact(
-					normalizedJID.String(),
-					normalizedJID.User,
-					info.PushName,
-					info.FullName,
-					info.FirstName,
-					info.BusinessName,
-				)
 			}
-		}
-	}
-
-	// Best-effort: store group metadata (and participants) when available.
-	if pm.Chat.Server == types.GroupServer {
-		if gi, err := a.wa.GetGroupInfo(ctx, pm.Chat); err == nil && gi != nil {
-			normalizedChat := pm.Chat.ToNonAD()
-			_ = a.db.UpsertGroup(normalizedChat.String(), gi.GroupName.Name, gi.OwnerJID.String(), gi.GroupCreated)
-			var ps []store.GroupParticipant
-			for _, p := range gi.Participants {
-				role := "member"
-				if p.IsSuperAdmin {
-					role = "superadmin"
-				} else if p.IsAdmin {
-					role = "admin"
-				}
-				ps = append(ps, store.GroupParticipant{
-					GroupJID: normalizedChat.String(),
-					UserJID:  p.JID.ToNonAD().String(),
-					Role:     role,
-				})
-			}
-			_ = a.db.ReplaceGroupParticipants(normalizedChat.String(), ps)
 		}
 	}
 

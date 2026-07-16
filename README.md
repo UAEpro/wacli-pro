@@ -341,6 +341,7 @@ wacli-pro --json chats list --limit 100000 \
 - `WACLI_PRO_STORE_DIR`: override the store directory (default: `~/.wacli-pro`). Equivalent to `--store`.
 - `WACLI_PRO_DEVICE_LABEL`: set the linked device label (shown in WhatsApp linked devices).
 - `WACLI_PRO_DEVICE_PLATFORM`: override the linked device platform (defaults to `CHROME` if unset or invalid).
+- `WACLI_PRO_NO_PHONE_REREQUEST`: set to any value to stop asking the phone to resend messages this device could not decrypt. Reduces phone wakeups/load; those messages stay dropped.
 
 ## Storage
 

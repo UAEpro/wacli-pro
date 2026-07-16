@@ -83,7 +83,9 @@ func (c *Client) init() error {
 	// Ask the primary device (phone) to resend any message this linked device
 	// fails to decrypt, instead of silently dropping it. Recovers messages lost
 	// to Signal session desync (the "old version of WhatsApp" placeholder).
-	c.client.AutomaticMessageRerequestFromPhone = true
+	// Each re-request wakes the phone and makes it re-encrypt the message, so
+	// WACLI_PRO_NO_PHONE_REREQUEST=1 disables it if the phone is struggling.
+	c.client.AutomaticMessageRerequestFromPhone = os.Getenv("WACLI_PRO_NO_PHONE_REREQUEST") == ""
 	return nil
 }
 
